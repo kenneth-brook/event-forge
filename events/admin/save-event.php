@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 require __DIR__ . '/../includes/functions.php';
+require __DIR__ . '/../includes/recurrence.php';
 
 require_login();
 
@@ -19,17 +20,52 @@ $description = trim($_POST['description'] ?? '');
 $externalUrl = trim($_POST['external_url'] ?? '');
 $isPublished = isset($_POST['is_published']) ? 1 : 0;
 
+/*
+|--------------------------------------------------------------------------
+| Recurrence fields
+|--------------------------------------------------------------------------
+*/
+$isRecurringParent = isset($_POST['is_recurring_parent']) ? 1 : 0;
+$recurrenceType = trim($_POST['recurrence_type'] ?? '');
+$recurrenceInterval = max(1, (int) ($_POST['recurrence_interval'] ?? 1));
+$recurrenceDays = $_POST['recurrence_days'] ?? [];
+$recurrenceWeekOfMonth = trim($_POST['recurrence_week_of_month'] ?? '');
+$recurrenceDayOfWeek = trim($_POST['recurrence_day_of_week'] ?? '');
+$recurrenceEndDate = trim($_POST['recurrence_end_date'] ?? '');
+
+if (is_array($recurrenceDays)) {
+    $recurrenceDays = implode(',', array_map('trim', $recurrenceDays));
+} else {
+    $recurrenceDays = trim((string) $recurrenceDays);
+}
+
 if ($title === '' || $startDatetime === '') {
     exit('Title and start date/time are required.');
 }
 
 $titleEsc = mysqli_real_escape_string($connection, $title);
 $startEsc = mysqli_real_escape_string($connection, str_replace('T', ' ', $startDatetime) . ':00');
-$endEsc = $endDatetime !== '' ? "'" . mysqli_real_escape_string($connection, str_replace('T', ' ', $endDatetime) . ':00') . "'" : 'NULL';
+$endEsc = $endDatetime !== ''
+    ? "'" . mysqli_real_escape_string($connection, str_replace('T', ' ', $endDatetime) . ':00') . "'"
+    : 'NULL';
+
 $locationEsc = mysqli_real_escape_string($connection, $location);
 $summaryEsc = mysqli_real_escape_string($connection, $summary);
 $descriptionEsc = mysqli_real_escape_string($connection, $description);
 $externalUrlEsc = mysqli_real_escape_string($connection, $externalUrl);
+
+$recurrenceTypeEsc = mysqli_real_escape_string($connection, $recurrenceType);
+$recurrenceDaysEsc = mysqli_real_escape_string($connection, $recurrenceDays);
+$recurrenceWeekOfMonthEsc = mysqli_real_escape_string($connection, $recurrenceWeekOfMonth);
+$recurrenceDayOfWeekEsc = mysqli_real_escape_string($connection, $recurrenceDayOfWeek);
+$recurrenceEndDateSql = $recurrenceEndDate !== ''
+    ? "'" . mysqli_real_escape_string($connection, $recurrenceEndDate) . "'"
+    : 'NULL';
+
+$recurrenceTypeSql = $recurrenceType !== '' ? "'{$recurrenceTypeEsc}'" : 'NULL';
+$recurrenceDaysSql = $recurrenceDays !== '' ? "'{$recurrenceDaysEsc}'" : 'NULL';
+$recurrenceWeekOfMonthSql = $recurrenceWeekOfMonth !== '' ? "'{$recurrenceWeekOfMonthEsc}'" : 'NULL';
+$recurrenceDayOfWeekSql = $recurrenceDayOfWeek !== '' ? "'{$recurrenceDayOfWeekEsc}'" : 'NULL';
 
 $imageSqlPart = '';
 $pdfSqlPart = '';
@@ -75,7 +111,14 @@ if ($id > 0) {
             summary = '{$summaryEsc}',
             description = '{$descriptionEsc}',
             external_url = '{$externalUrlEsc}',
-            is_published = {$isPublished}
+            is_published = {$isPublished},
+            is_recurring_parent = {$isRecurringParent},
+            recurrence_type = {$recurrenceTypeSql},
+            recurrence_interval = {$recurrenceInterval},
+            recurrence_days = {$recurrenceDaysSql},
+            recurrence_week_of_month = {$recurrenceWeekOfMonthSql},
+            recurrence_day_of_week = {$recurrenceDayOfWeekSql},
+            recurrence_end_date = {$recurrenceEndDateSql}
             {$imageSqlPart}
             {$pdfSqlPart}
         WHERE id = {$id}
@@ -107,7 +150,14 @@ if ($id > 0) {
             image_path,
             pdf_path,
             external_url,
-            is_published
+            is_published,
+            is_recurring_parent,
+            recurrence_type,
+            recurrence_interval,
+            recurrence_days,
+            recurrence_week_of_month,
+            recurrence_day_of_week,
+            recurrence_end_date
         ) VALUES (
             '{$titleEsc}',
             '{$startEsc}',
@@ -119,13 +169,39 @@ if ($id > 0) {
             {$imageInsert},
             {$pdfInsert},
             '{$externalUrlEsc}',
-            {$isPublished}
+            {$isPublished},
+            {$isRecurringParent},
+            {$recurrenceTypeSql},
+            {$recurrenceInterval},
+            {$recurrenceDaysSql},
+            {$recurrenceWeekOfMonthSql},
+            {$recurrenceDayOfWeekSql},
+            {$recurrenceEndDateSql}
         )
     ";
 }
 
 if (!mysqli_query($connection, $sql)) {
     exit('Save failed: ' . mysqli_error($connection));
+}
+
+$savedId = $id > 0 ? $id : (int) mysqli_insert_id($connection);
+
+/*
+|--------------------------------------------------------------------------
+| Recurrence generation / cleanup
+|--------------------------------------------------------------------------
+|
+| Recurring parents generate normal child events.
+| Non-recurring events or recurring rules turned off will clear children.
+|
+*/
+if ($savedId > 0) {
+    if ($isRecurringParent === 1) {
+        eventforge_generate_recurrence($connection, $savedId);
+    } else {
+        eventforge_delete_future_children($connection, $savedId);
+    }
 }
 
 header('Location: /events/admin/index.php');

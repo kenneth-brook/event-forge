@@ -23,9 +23,11 @@ $sql = "
         description,
         image_path,
         pdf_path,
-        external_url
+        external_url,
+        is_canceled
     FROM events
     WHERE is_published = 1
+      AND (is_recurring_parent = 0 OR is_recurring_parent IS NULL)
 ";
 
 if ($hidePastEvents) {
@@ -61,6 +63,7 @@ while ($row = mysqli_fetch_assoc($result)) {
             'image' => $row['image_path'] ?? '',
             'pdf' => $row['pdf_path'] ?? '',
             'externalUrl' => $row['external_url'] ?? '',
+            'isCanceled' => (bool) ($row['is_canceled'] ?? 0),
         ],
     ];
 }

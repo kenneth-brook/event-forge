@@ -138,3 +138,51 @@
 #calendar .fc-list-event {
   cursor: pointer;
 }
+
+/* Base canceled appearance */
+.event-canceled {
+  position: relative;
+}
+
+/* Strike through only the title text */
+#calendar .event-canceled .fc-event-title,
+#resident-calendar .event-canceled .fc-event-title,
+#calendar .fc-list-event.event-canceled .fc-list-event-title a,
+#resident-calendar .fc-list-event.event-canceled .fc-list-event-title a {
+  text-decoration: line-through;
+  opacity: 0.85;
+}
+
+/* DayGrid / TimeGrid: show a red canceled label before the event content */
+#calendar .fc-daygrid-event.event-canceled::before,
+#resident-calendar .fc-daygrid-event.event-canceled::before,
+#calendar .fc-timegrid-event.event-canceled::before,
+#resident-calendar .fc-timegrid-event.event-canceled::before {
+  content: "CANCELED ";
+  display: inline-block;
+  color: #c62828;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  margin-right: 0.35rem;
+  text-decoration: none;
+}
+
+/* List view: put canceled before the title cell content */
+#calendar .fc-list-event.event-canceled .fc-list-event-title a::before,
+#resident-calendar .fc-list-event.event-canceled .fc-list-event-title a::before {
+  content: "CANCELED ";
+  color: #c62828;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+#calendar .fc-list-event.event-canceled .fc-list-event-title,
+#resident-calendar .fc-list-event.event-canceled .fc-list-event-title {
+  text-decoration: line-through !important;
+}
+
+#calendar .fc-list-event.event-canceled .fc-list-event-title a,
+#resident-calendar .fc-list-event.event-canceled .fc-list-event-title a {
+  text-decoration: inherit !important;
+}

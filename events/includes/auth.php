@@ -15,3 +15,26 @@ function require_login(): void
         exit;
     }
 }
+
+function current_admin_username(): string
+{
+    return (string) ($_SESSION['events_admin_username'] ?? '');
+}
+
+function current_admin_role(): string
+{
+    return (string) ($_SESSION['events_admin_role'] ?? 'staff');
+}
+
+function is_admin(): bool
+{
+    return current_admin_role() === 'admin';
+}
+
+function require_admin(): void
+{
+    if (!is_admin()) {
+        http_response_code(403);
+        exit('Access denied.');
+    }
+}

@@ -17,13 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $usernameSafe = mysqli_real_escape_string($connection, $username);
 
-    $sql = "SELECT id, username, password_hash FROM event_admin_users WHERE username = '{$usernameSafe}' LIMIT 1";
+    $sql = "SELECT id, username, password_hash, role FROM event_admin_users WHERE username = '{$usernameSafe}' LIMIT 1";
     $result = mysqli_query($connection, $sql);
 
     if ($result && $user = mysqli_fetch_assoc($result)) {
         if (password_verify($password, $user['password_hash'])) {
             $_SESSION['events_admin_logged_in'] = true;
             $_SESSION['events_admin_username'] = $user['username'];
+            $_SESSION['events_admin_role'] = $user['role'] ?? 'staff';
 
             header('Location: /events/admin/index.php');
             exit;
