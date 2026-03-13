@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-$host = 'heritageoaks.365dtm.com';
-$username = 'heritageoaks';
-$password = 'Heritageoaks2026';
-$dbname = 'heritageoaks';
+$host = '';
+$username = '';
+$password = '';
+$dbname = '';
 
 $connection = mysqli_connect($host, $username, $password, $dbname);
 
