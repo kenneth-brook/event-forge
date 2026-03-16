@@ -1,16 +1,11 @@
 <?php
 declare(strict_types=1);
 
-$host = '';
-$username = '';
-$password = '';
-$dbname = '';
+require_once __DIR__ . '/installer.php';
 
-$connection = mysqli_connect($host, $username, $password, $dbname);
+$connection = eventforge_bootstrap_connection();
 
 if (!$connection) {
     http_response_code(500);
-    exit('Database connection failed: ' . mysqli_connect_error());
+    exit('Database is not configured.');
 }
-
-mysqli_set_charset($connection, 'utf8mb4');

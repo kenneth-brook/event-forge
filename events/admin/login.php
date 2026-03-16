@@ -1,11 +1,18 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__ . '/../includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    header('Location: /event-forge/events/admin/setup.php');
+    exit;
+}
+
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 
 if (is_logged_in()) {
-    header('Location: /events/admin/index.php');
+    header('Location: /event-forge/events/admin/index.php');
     exit;
 }
 
@@ -26,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['events_admin_username'] = $user['username'];
             $_SESSION['events_admin_role'] = $user['role'] ?? 'staff';
 
-            header('Location: /events/admin/index.php');
+            header('Location: /event-forge/events/admin/index.php');
             exit;
         }
     }
