@@ -1,3 +1,5 @@
+# README.md
+
 # Event Forge
 
 ![License](https://img.shields.io/badge/license-Proprietary-blue)
@@ -5,25 +7,24 @@
 ![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MariaDB-orange)
 ![Version](https://img.shields.io/badge/version-0.1.0-green)
 ![Status](https://img.shields.io/badge/status-active-success)
-![Architecture](https://img.shields.io/badge/architecture-modular-informational)
+![Architecture](https://img.shields.io/badge/architecture-portable-informational)
 
-**Event Forge** is a portable event management and display engine designed for static and legacy hosting environments.
+**Event Forge** is a portable event management and display utility built for static and legacy hosting environments.
 
-It provides a modular system for managing and displaying events without requiring modern JavaScript frameworks, build tools, or complex infrastructure.
-
-Event Forge was created to run in environments where Node-based applications or large CMS platforms are impractical, such as shared hosting, tourism portals, municipal websites, retirement communities, kiosk systems, and static marketing sites.
+It provides a self-contained event system with an administrative interface, event API, recurring event support, cancellations, child-instance independence, and embeddable calendar views without requiring Node.js, a framework build chain, or a modern CMS stack.
 
 ---
 
-## Philosophy
+## Purpose
 
-Event Forge follows a few guiding principles:
+Event Forge was built to solve a practical deployment problem:
 
-- **Portable** - deployable on standard PHP hosting
-- **Modular** - new functionality added through modules
-- **API-first** - event data is accessible via JSON endpoints
-- **Framework-free** - no Node.js or build pipeline required
-- **Replaceable UI** - frontend components can be swapped without altering the backend
+- static or lightly dynamic sites still need a real event system
+- older hosting environments often cannot support modern application stacks
+- clients still expect calendars, recurring events, attachments, and admin controls
+- agencies need something repeatable, fast to deploy, and easy to maintain
+
+Event Forge is designed to fill that gap.
 
 ---
 
@@ -33,33 +34,49 @@ Event Forge follows a few guiding principles:
 
 - Create, edit, and delete events
 - Publish and unpublish events
+- Cancel and uncancel events
 - Optional image uploads
 - Optional PDF attachments
-- Event descriptions and summaries
+- Event summaries and descriptions
+
+### Recurring Events
+
+- Weekly recurrence
+- Monthly nth-weekday recurrence
+- Generated child event instances
+- Independent child support for one-off overrides
+- Parent/child grouping in the admin interface
 
 ### Event Display
 
-- Interactive calendar
 - Month view
 - Week view
 - Day view
 - List view
 - Event detail modal
-- Optional attachment display
+- Canceled event display styling
+
+### Admin Controls
+
+- Login-protected admin area
+- User roles: `admin` and `staff`
+- User creation and management
+- Admin-only settings area
+- Series controls for recurring events
 
 ### API
 
-Event Forge exposes event data through a JSON API:
+Event data is exposed through:
 
 `/events/api.php`
 
-This API allows events to be consumed by:
+This allows the system to power:
 
 - calendars
-- event lists
+- list views
 - scrollers
-- kiosk displays
-- external systems
+- event widgets
+- future modules
 
 ---
 
@@ -72,59 +89,78 @@ Minimum requirements:
 - Standard shared hosting
 - JavaScript enabled in the browser
 
-No Node.js, npm, or build tools are required.
+No Node.js, npm, or build pipeline is required.
+
+---
+
+## Project Structure
+
+```text
+event-forge/
+├── README.md
+├── ROADMAP.md
+├── LICENSE
+├── .gitignore
+├── events/
+│   ├── api.php
+│   ├── event.php
+│   ├── admin/
+│   ├── assets/
+│   ├── includes/
+│   ├── uploads/
+│   └── config/
+├── install/
+│   ├── install.sql
+│   ├── seed.sample.sql
+│   └── notes.md
+├── deploy/
+│   └── deployment-checklist.md
+└── examples/
+    ├── consumer-page-example.php
+    └── embed-snippets.md
+```
 
 ---
 
 ## Installation
 
-### 1. Upload Event Forge
+### 1. Upload the `events` directory
 
-Upload the events module to your site.
+Deploy the `events` folder to your site root.
 
-Example structure:
+Example target path:
 
 `/events`
 
-Directory layout:
+### 2. Create the database
 
-```text
-events
-├── admin
-├── assets
-├── includes
-├── uploads
-└── api.php
-```
+Create a MySQL or MariaDB database for the installation.
 
-### 2. Create Database Tables
+### 3. Import the schema
 
-Import the provided SQL schema or create the required tables manually.
+Import:
 
-Required tables:
+`/install/install.sql`
 
-- `events`
-- `event_admin_users`
+### 4. Configure database access
 
-### 3. Configure Database
-
-Edit the database configuration file:
+Edit:
 
 `/events/includes/db.php`
 
-Update it with your database credentials.
+and set the correct database connection values.
 
-### 4. Create an Admin User
+### 5. Create the first admin account
 
-Generate a password hash using PHP:
+Insert an admin user into `event_admin_users` using a password hash generated with PHP:
 
 ```php
 password_hash('yourpassword', PASSWORD_DEFAULT);
 ```
 
-Insert the user into the `event_admin_users` table.
+### 6. Log in
 
-### 5. Access the Admin Interface
+Access the admin area:
 
 `/events/admin/login.php`
 
@@ -132,118 +168,70 @@ Insert the user into the `event_admin_users` table.
 
 ## Embedding the Calendar
 
-Add a calendar container to the page that will consume the module:
+Add a calendar container to the page consuming the module:
 
 ```html
 <div id="calendar"></div>
 ```
 
-Load the required assets:
+Load the assets:
 
 ```html
 <link rel="stylesheet" href="/events/assets/css/calendar.css">
-
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js"></script>
 <script type="module" src="/events/assets/js/calendar.js"></script>
 ```
 
-The calendar will load data from:
+The calendar will load event data from:
 
 `/events/api.php`
 
 ---
 
-## Event Attachments
+## Upload Locations
 
-Events may optionally include:
-
-- images
-- PDF documents
-
-These files are uploaded through the admin interface and stored in:
+Uploaded assets are stored in:
 
 - `/events/uploads/images`
 - `/events/uploads/pdfs`
 
-Uploads are optional and events function normally without them.
+These directories should be writable by the web server.
 
 ---
 
-## Project Structure
+## Roles
 
-```text
-event-forge
-├── modules
-│   └── calendar
-│       ├── admin
-│       ├── assets
-│       ├── includes
-│       ├── uploads
-│       └── api.php
-├── README.md
-├── ROADMAP.md
-└── LICENSE
-```
+Event Forge currently supports two user roles:
+
+- `admin`
+- `staff`
+
+### Admin
+Can access settings and manage users.
+
+### Staff
+Can use the event system without admin-only controls.
 
 ---
 
-## Roadmap
+## Notes
 
-### v0.1
-
-- FullCalendar integration
-- Event API
-- Admin CRUD
-- Image and PDF uploads
-- Modal event viewer
-
-### v0.2
-
-- Event categories
-- Filtering
-- Admin interface improvements
-- Account-level settings
-
-### v0.3
-
-- Upcoming events scroller module
-- Announcement bar module
-- Mapped locations module
-
-### v0.4
-
-- Module auto-loader
-- Shared settings panel
-- Expanded embed options
-
-### v1.0
-
-- Native Event Forge calendar engine
-- Removal of third-party calendar dependency
-- Full modular utility platform support
+- Recurring parent events generate child instances into the main `events` table.
+- Independent children remain associated with the series, but are no longer overwritten by parent regeneration.
+- Canceled events remain visible for communication purposes instead of being deleted.
 
 ---
 
-## Planned Modules
+## Current Status
 
-Event Forge is being designed as a multi-module utility platform.
+Event Forge is currently in active internal development and deployment use.
 
-Planned modules include:
+It is already suitable for real-world client deployment in environments that need:
 
-- Calendar
-- Upcoming Events Scroller
-- Announcement Bar
-- Mapped Locations
-
-Additional modules can be added over time while continuing to use the same data and configuration architecture.
-
----
-
-## Development Notes
-
-The current implementation uses FullCalendar as the presentation layer for rapid deployment and compatibility with static and legacy-hosted environments.
-
-The long-term goal is to replace third-party calendar rendering with a native Event Forge calendar engine while preserving the existing data layer, administrative tooling, and module architecture.
+- rapid event calendar rollout
+- recurring event support
+- minimal hosting requirements
+- a maintainable admin layer
 
 ---
 
@@ -252,16 +240,3 @@ The long-term goal is to replace third-party calendar rendering with a native Ev
 This project is currently maintained for internal and client use.
 
 License terms will be finalized as the project evolves.
-
----
-
-## Contributing
-
-When contributing to Event Forge, prefer changes that preserve:
-
-- portability
-- modularity
-- framework independence
-- compatibility with standard PHP hosting
-
-Avoid introducing infrastructure requirements that would prevent deployment on legacy or shared hosting environments.
