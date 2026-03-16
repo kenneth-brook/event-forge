@@ -69,6 +69,17 @@ Planned:
 
 ---
 
+### Schema Versioning
+
+Event Forge tracks install-level metadata in `eventforge_system`.
+
+This allows:
+
+- schema version detection
+- app version tracking
+- future migration execution
+- safer dropped-in file updates
+
 ## Events Module Expansion
 
 ### Recurrence Improvements
