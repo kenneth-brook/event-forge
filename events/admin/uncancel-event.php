@@ -18,5 +18,5 @@ if ($id > 0) {
     ");
 }
 
-header('Location: /events/admin/index.php');
+header('Location: /event-forge/events/admin/index.php');
 exit;
