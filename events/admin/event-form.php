@@ -160,9 +160,9 @@ $weekdayOptions = [
 <body>
   <div class="wrap">
     <h1><?= $id > 0 ? 'Edit Event' : 'Add Event' ?></h1>
-    <p><a href="/events/admin/index.php">← Back to events</a></p>
+    <p><a href="/event-forge/events/admin/index.php">← Back to events</a></p>
 
-    <form method="post" action="/events/admin/save-event.php" enctype="multipart/form-data">
+    <form method="post" action="/event-forge/events/admin/save-event.php" enctype="multipart/form-data">
       <input type="hidden" name="id" value="<?= (int) $event['id'] ?>">
 
       <label for="title">Title</label>

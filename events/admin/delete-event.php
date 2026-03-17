@@ -12,5 +12,5 @@ if ($id > 0) {
     mysqli_query($connection, "DELETE FROM events WHERE id = {$id} LIMIT 1");
 }
 
-header('Location: /events/admin/index.php');
+header('Location: /event-forge/events/admin/index.php');
 exit;

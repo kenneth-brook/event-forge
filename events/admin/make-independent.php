@@ -21,5 +21,5 @@ if ($id > 0) {
     mysqli_query($connection, $sql);
 }
 
-header('Location: /events/admin/index.php');
+header('Location: /event-forge/events/admin/index.php');
 exit;

@@ -54,5 +54,5 @@ if (!mysqli_query($connection, $sql)) {
     exit('User save failed: ' . mysqli_error($connection));
 }
 
-header('Location: /events/admin/settings.php');
+header('Location: /event-forge/events/admin/settings.php');
 exit;

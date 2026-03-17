@@ -5,5 +5,5 @@ session_start();
 $_SESSION = [];
 session_destroy();
 
-header('Location: /events/admin/login.php');
+header('Location: /event-forge/events/admin/login.php');
 exit;

@@ -11,7 +11,7 @@ function is_logged_in(): bool
 function require_login(): void
 {
     if (!is_logged_in()) {
-        header('Location: /events/admin/login.php');
+        header('Location: /event-forge/events/admin/login.php');
         exit;
     }
 }

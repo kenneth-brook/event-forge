@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     timeGridDay: 'Day',
     listMonth: 'List'
   },
-  events: '/events/api.php',
+  events: '/event-forge/events/api.php',
   eventTimeFormat: {
     hour: 'numeric',
     minute: '2-digit',

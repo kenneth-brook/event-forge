@@ -79,7 +79,7 @@ try {
     );
 
     if ($imageFilename !== null) {
-        $imagePath = '/events/uploads/images/' . $imageFilename;
+        $imagePath = '/event-forge/events/uploads/images/' . $imageFilename;
         $imageEsc = mysqli_real_escape_string($connection, $imagePath);
         $imageSqlPart = ", image_path = '{$imageEsc}'";
     }
@@ -92,7 +92,7 @@ try {
     );
 
     if ($pdfFilename !== null) {
-        $pdfPath = '/events/uploads/pdfs/' . $pdfFilename;
+        $pdfPath = '/event-forge/events/uploads/pdfs/' . $pdfFilename;
         $pdfEsc = mysqli_real_escape_string($connection, $pdfPath);
         $pdfSqlPart = ", pdf_path = '{$pdfEsc}'";
     }
@@ -204,5 +204,5 @@ if ($savedId > 0) {
     }
 }
 
-header('Location: /events/admin/index.php');
+header('Location: /event-forge/events/admin/index.php');
 exit;

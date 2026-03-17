@@ -181,8 +181,8 @@ if (!$userResult) {
           <span class="account-chip__role"><?= htmlspecialchars(strtoupper(current_admin_role())) ?></span>
         </div>
 
-        <a class="button" href="/events/admin/index.php">Back to Events</a>
-        <a class="button" href="/events/admin/logout.php">Log Out</a>
+        <a class="button" href="/event-forge/events/admin/index.php">Back to Events</a>
+        <a class="button" href="/event-forge/events/admin/logout.php">Log Out</a>
       </div>
     </div>
 
@@ -212,12 +212,12 @@ if (!$userResult) {
               <td>
                 <?php if ((string) $user['username'] !== current_admin_username()): ?>
                   <?php if ((string) $user['role'] === 'admin'): ?>
-                    <a href="/events/admin/toggle-user-role.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this admin to staff?');">Make Staff</a>
+                    <a href="/event-forge/events/admin/toggle-user-role.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this admin to staff?');">Make Staff</a>
                   <?php else: ?>
-                    <a href="/events/admin/toggle-user-role.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this staff user to admin?');">Make Admin</a>
+                    <a href="/event-forge/events/admin/toggle-user-role.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this staff user to admin?');">Make Admin</a>
                   <?php endif; ?>
                   |
-                  <a href="/events/admin/delete-user.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">Delete</a>
+                  <a href="/event-forge/events/admin/delete-user.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">Delete</a>
                 <?php else: ?>
                   <em>Current account</em>
                 <?php endif; ?>
@@ -231,7 +231,7 @@ if (!$userResult) {
     <div class="settings-section">
       <h2>Add User</h2>
 
-      <form method="post" action="/events/admin/save-user.php">
+      <form method="post" action="/event-forge/events/admin/save-user.php">
         <label for="username">Username</label>
         <input id="username" name="username" type="text" required>
 

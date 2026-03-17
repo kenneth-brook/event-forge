@@ -180,13 +180,13 @@ if (!$result) {
       <span class="account-chip__role"><?= htmlspecialchars(strtoupper(current_admin_role())) ?></span>
     </div>
 
-    <a class="button" href="/events/admin/event-form.php">Add Event</a>
+    <a class="button" href="/event-forge/events/admin/event-form.php">Add Event</a>
 
     <?php if (is_admin()): ?>
-      <a class="button" href="/events/admin/settings.php">Settings</a>
+      <a class="button" href="/event-forge/events/admin/settings.php">Settings</a>
     <?php endif; ?>
 
-    <a class="button" href="/events/admin/logout.php">Log Out</a>
+    <a class="button" href="/event-forge/events/admin/logout.php">Log Out</a>
   </div>
 </div>
 
@@ -259,7 +259,7 @@ if (!$result) {
           <td>
             <?= !empty($row['is_published']) ? 'Yes' : 'No' ?>
             |
-            <a href="/events/admin/toggle-publish.php?id=<?= (int) $row['id'] ?>">
+            <a href="/event-forge/events/admin/toggle-publish.php?id=<?= (int) $row['id'] ?>">
               <?= !empty($row['is_published']) ? 'Unpublish' : 'Publish' ?>
             </a>
           </td>
@@ -269,7 +269,7 @@ if (!$result) {
               <div><em>Generated from series</em></div>
               <div>
                 <a
-                  href="/events/admin/make-independent.php?id=<?= (int) $row['id'] ?>"
+                  href="/event-forge/events/admin/make-independent.php?id=<?= (int) $row['id'] ?>"
                   title="This child will remain grouped under the parent series, but future series updates will not overwrite it."
                   onclick="return confirm('Make this generated child independent? Future parent changes will no longer overwrite this event.');"
                 >
@@ -277,28 +277,28 @@ if (!$result) {
                 </a>
                 |
                 <?php if ($isCanceled): ?>
-                  <a href="/events/admin/uncancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">
+                  <a href="/event-forge/events/admin/uncancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">
                     Uncancel
                   </a>
                 <?php else: ?>
-                  <a href="/events/admin/cancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event? This will also make it independent from the series.');">
+                  <a href="/event-forge/events/admin/cancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event? This will also make it independent from the series.');">
                     Cancel
                   </a>
                 <?php endif; ?>
               </div>
 
             <?php elseif ($isParent): ?>
-              <a href="/events/admin/event-form.php?id=<?= (int) $row['id'] ?>">Edit</a> |
-              <a href="/events/admin/delete-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event and its generated children?');">Delete</a>
+              <a href="/event-forge/events/admin/event-form.php?id=<?= (int) $row['id'] ?>">Edit</a> |
+              <a href="/event-forge/events/admin/delete-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event and its generated children?');">Delete</a>
 
             <?php else: ?>
-              <a href="/events/admin/event-form.php?id=<?= (int) $row['id'] ?>">Edit</a> |
+              <a href="/event-forge/events/admin/event-form.php?id=<?= (int) $row['id'] ?>">Edit</a> |
               <?php if ($isCanceled): ?>
-                <a href="/events/admin/uncancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">Uncancel</a> |
+                <a href="/event-forge/events/admin/uncancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">Uncancel</a> |
               <?php else: ?>
-                <a href="/events/admin/cancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event?');">Cancel</a> |
+                <a href="/event-forge/events/admin/cancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event?');">Cancel</a> |
               <?php endif; ?>
-              <a href="/events/admin/delete-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event?');">Delete</a>
+              <a href="/event-forge/events/admin/delete-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event?');">Delete</a>
             <?php endif; ?>
           </td>
         </tr>
