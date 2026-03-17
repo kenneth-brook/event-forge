@@ -9,7 +9,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 require __DIR__ . '/includes/db.php';
 
-$hidePastEvents = false;
+$hidePastEvents = true;
+$keepCurrentMonth = true;
 
 $sql = "
     SELECT
@@ -31,7 +32,11 @@ $sql = "
 ";
 
 if ($hidePastEvents) {
-    $sql .= " AND start_datetime >= NOW()";
+    if ($keepCurrentMonth) {
+        $sql .= " AND start_datetime >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
+    } else {
+        $sql .= " AND start_datetime >= NOW()";
+    }
 }
 
 $sql .= " ORDER BY start_datetime ASC";
