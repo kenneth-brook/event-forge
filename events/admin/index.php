@@ -1,9 +1,12 @@
 <?php
 declare(strict_types=1);
 
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
+require __DIR__ . '/../includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    header('Location: /event-forge/events/admin/setup.php');
+    exit;
+}
 
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
