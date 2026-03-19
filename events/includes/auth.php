@@ -11,7 +11,8 @@ function is_logged_in(): bool
 function require_login(): void
 {
     if (!is_logged_in()) {
-        header('Location: /event-forge/events/admin/login.php');
+        require_once __DIR__ . '/installer.php';
+        header('Location: ' . eventforge_admin_path('login.php'));
         exit;
     }
 }
@@ -29,6 +30,36 @@ function current_admin_role(): string
 function is_admin(): bool
 {
     return current_admin_role() === 'admin';
+}
+
+function is_staff_manager(): bool
+{
+    return current_admin_role() === 'staff_manager';
+}
+
+function can_manage_users(): bool
+{
+    return in_array(current_admin_role(), ['staff_manager', 'admin'], true);
+}
+
+function can_create_staff_accounts(): bool
+{
+    return in_array(current_admin_role(), ['staff_manager', 'admin'], true);
+}
+
+function can_create_staff_manager_accounts(): bool
+{
+    return is_admin();
+}
+
+function can_manage_staff_accounts(): bool
+{
+    return in_array(current_admin_role(), ['staff_manager', 'admin'], true);
+}
+
+function can_manage_admin_accounts(): bool
+{
+    return is_admin();
 }
 
 function require_admin(): void

@@ -1,24 +1,40 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__ . '/../includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    header('Location: ' . eventforge_admin_path('setup.php'));
+    exit;
+}
+
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 
 require_login();
-require_admin();
 
-$userSql = "
-    SELECT id, username, role, created_at
-    FROM event_admin_users
-    ORDER BY
-        CASE WHEN role = 'admin' THEN 0 ELSE 1 END,
-        username ASC
-";
+$canManageUsers = can_manage_users();
 
-$userResult = mysqli_query($connection, $userSql);
+$userResult = null;
 
-if (!$userResult) {
-    exit('User query failed: ' . mysqli_error($connection));
+if ($canManageUsers) {
+    $userSql = "
+        SELECT id, username, role, is_suspended, created_at
+        FROM event_admin_users
+        ORDER BY
+            CASE
+                WHEN role = 'admin' THEN 0
+                WHEN role = 'staff_manager' THEN 1
+                ELSE 2
+            END,
+            username ASC
+    ";
+
+    $userResult = mysqli_query($connection, $userSql);
+
+    if (!$userResult) {
+        exit('User query failed: ' . mysqli_error($connection));
+    }
 }
 ?>
 <!doctype html>
@@ -164,9 +180,21 @@ if (!$userResult) {
       color: #fff;
     }
 
-    .role-staff {
-      background: #dbe7dc;
+    .role-manager {
+      background: #d7ecde;
       color: #1f2937;
+    }
+
+    .role-staff {
+      background: #e8edf3;
+      color: #1f2937;
+    }
+
+    .status-suspended {
+      display: inline-block;
+      color: #c62828;
+      font-size: .8rem;
+      font-weight: 700;
     }
   </style>
 </head>
@@ -178,83 +206,212 @@ if (!$userResult) {
       <div class="topbar-right">
         <div class="account-chip">
           <span class="account-chip__name"><?= htmlspecialchars(current_admin_username()) ?></span>
-          <span class="account-chip__role"><?= htmlspecialchars(strtoupper(current_admin_role())) ?></span>
+          <span class="account-chip__role"><?= htmlspecialchars(strtoupper(str_replace('_', ' ', current_admin_role()))) ?></span>
         </div>
 
-        <a class="button" href="/event-forge/events/admin/index.php">Back to Events</a>
-        <a class="button" href="/event-forge/events/admin/logout.php">Log Out</a>
+        <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('index.php')) ?>">Back to Events</a>
+        <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('logout.php')) ?>">Log Out</a>
       </div>
     </div>
 
-    <div class="settings-section">
-      <h2>User Management</h2>
-      <p class="note">Admins can create staff or additional admin accounts from here.</p>
+    <?php if ($canManageUsers): ?>
+      <div class="settings-section">
+        <h2>User Management</h2>
+        <p class="note">
+          <?php if (is_admin()): ?>
+            Admins can create, manage, suspend, unsuspend, and delete staff, staff manager, and admin accounts.
+          <?php elseif (is_staff_manager()): ?>
+            Staff managers can create, suspend, unsuspend, and delete staff accounts.
+          <?php endif; ?>
+        </p>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Created</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php while ($user = mysqli_fetch_assoc($userResult)): ?>
+        <table>
+          <thead>
             <tr>
-              <td><?= htmlspecialchars((string) $user['username']) ?></td>
-              <td>
-                <span class="role-badge <?= $user['role'] === 'admin' ? 'role-admin' : 'role-staff' ?>">
-                  <?= htmlspecialchars(strtoupper((string) $user['role'])) ?>
-                </span>
-              </td>
-              <td><?= htmlspecialchars((string) $user['created_at']) ?></td>
-              <td>
-                <?php if ((string) $user['username'] !== current_admin_username()): ?>
-                  <?php if ((string) $user['role'] === 'admin'): ?>
-                    <a href="/event-forge/events/admin/toggle-user-role.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this admin to staff?');">Make Staff</a>
-                  <?php else: ?>
-                    <a href="/event-forge/events/admin/toggle-user-role.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this staff user to admin?');">Make Admin</a>
-                  <?php endif; ?>
-                  |
-                  <a href="/event-forge/events/admin/delete-user.php?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">Delete</a>
-                <?php else: ?>
-                  <em>Current account</em>
-                <?php endif; ?>
-              </td>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Actions</th>
             </tr>
-          <?php endwhile; ?>
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            <?php while ($user = mysqli_fetch_assoc($userResult)): ?>
+              <?php
+              $targetUsername = (string) $user['username'];
+              $targetRole = (string) $user['role'];
+              $isSuspended = !empty($user['is_suspended']);
+              $isCurrentUser = $targetUsername === current_admin_username();
+              ?>
+              <tr>
+                <td><?= htmlspecialchars($targetUsername) ?></td>
+                <td>
+                  <span class="role-badge <?=
+                    $targetRole === 'admin' ? 'role-admin' :
+                    ($targetRole === 'staff_manager' ? 'role-manager' : 'role-staff')
+                  ?>">
+                    <?= htmlspecialchars(strtoupper(str_replace('_', ' ', $targetRole))) ?>
+                  </span>
+                </td>
+                <td>
+                  <?php if ($isSuspended): ?>
+                    <span class="status-suspended">SUSPENDED</span>
+                  <?php else: ?>
+                    Active
+                  <?php endif; ?>
+                </td>
+                <td><?= htmlspecialchars((string) $user['created_at']) ?></td>
+                <td>
+                  <?php if ($isCurrentUser): ?>
+                    <em>Current account</em>
 
-    <div class="settings-section">
-      <h2>Add User</h2>
+                  <?php elseif (is_admin()): ?>
+                    <?php if ($targetRole === 'staff'): ?>
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-user-role.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this staff account to staff manager?');">
+                        Make Staff Manager
+                      </a>
+                      |
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this account to admin?');">
+                        Make Admin
+                      </a>
+                      |
+                      <?php if ($isSuspended): ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                          Unsuspend
+                        </a>
+                      <?php else: ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                          Suspend
+                        </a>
+                      <?php endif; ?>
+                      |
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                        Delete
+                      </a>
 
-      <form method="post" action="/event-forge/events/admin/save-user.php">
-        <label for="username">Username</label>
-        <input id="username" name="username" type="text" required>
+                    <?php elseif ($targetRole === 'staff_manager'): ?>
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-user-role.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this staff manager back to staff?');">
+                        Make Staff
+                      </a>
+                      |
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this account to admin?');">
+                        Make Admin
+                      </a>
+                      |
+                      <?php if ($isSuspended): ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                          Unsuspend
+                        </a>
+                      <?php else: ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                          Suspend
+                        </a>
+                      <?php endif; ?>
+                      |
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                        Delete
+                      </a>
 
-        <label for="password">Password</label>
-        <input id="password" name="password" type="password" required>
+                    <?php elseif ($targetRole === 'admin'): ?>
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this admin to staff manager?');">
+                        Make Staff Manager
+                      </a>
+                      |
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this admin to staff?');">
+                        Make Staff
+                      </a>
+                      |
+                      <?php if ($isSuspended): ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                          Unsuspend
+                        </a>
+                      <?php else: ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                          Suspend
+                        </a>
+                      <?php endif; ?>
+                      |
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                        Delete
+                      </a>
 
-        <label for="role">Role</label>
-        <select id="role" name="role" required>
-          <option value="staff">Staff</option>
-          <option value="admin">Admin</option>
-        </select>
+                    <?php else: ?>
+                      <em>No actions</em>
+                    <?php endif; ?>
 
-        <div class="form-actions">
-          <button type="submit">Create User</button>
-        </div>
-      </form>
-    </div>
+                  <?php elseif (is_staff_manager()): ?>
+                    <?php if ($targetRole === 'staff'): ?>
+                      <?php if ($isSuspended): ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                          Unsuspend
+                        </a>
+                      <?php else: ?>
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                          Suspend
+                        </a>
+                      <?php endif; ?>
+                      |
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                        Delete
+                      </a>
+                    <?php else: ?>
+                      <em>No actions</em>
+                    <?php endif; ?>
 
-    <div class="settings-section">
-      <h2>Feature Controls</h2>
-      <div class="note">
-        This area is reserved for module toggles, account-level settings, display defaults, branding options, and staff-only controls.
+                  <?php else: ?>
+                    <em>No actions</em>
+                  <?php endif; ?>
+                </td>
+              </tr>
+            <?php endwhile; ?>
+          </tbody>
+        </table>
       </div>
+
+      <div class="settings-section">
+        <h2>Add User</h2>
+
+        <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-user.php')) ?>">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" required>
+
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required>
+
+          <label for="role">Role</label>
+          <select id="role" name="role" required>
+            <?php if (can_create_staff_accounts()): ?>
+              <option value="staff">Staff</option>
+            <?php endif; ?>
+
+            <?php if (can_create_staff_manager_accounts()): ?>
+              <option value="staff_manager">Staff Manager</option>
+            <?php endif; ?>
+
+            <?php if (is_admin()): ?>
+              <option value="admin">Admin</option>
+            <?php endif; ?>
+          </select>
+
+          <div class="form-actions">
+            <button type="submit">Create User</button>
+          </div>
+        </form>
+      </div>
+    <?php else: ?>
+      <div class="settings-section">
+        <h2>Account</h2>
+        <p class="note">
+          Account-level controls for your profile will be available here in a future update.
+        </p>
+      </div>
+    <?php endif; ?>
+
+    <div class="settings-section">
+      <h2>General Controls</h2>
+      <p class="note">
+        Event categories, display defaults, and future module-level controls will be managed here.
+      </p>
     </div>
   </div>
 </body>

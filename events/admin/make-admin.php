@@ -12,11 +12,7 @@ require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 
 require_login();
-
-if (!can_manage_users()) {
-    http_response_code(403);
-    exit('Access denied.');
-}
+require_admin();
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
@@ -34,19 +30,13 @@ if ($id > 0) {
         $targetUsername = (string) $user['username'];
         $targetRole = (string) $user['role'];
 
-        $canManageTarget = false;
-
-        if (is_admin()) {
-            $canManageTarget = $targetUsername !== current_admin_username()
-                && in_array($targetRole, ['staff', 'staff_manager', 'admin'], true);
-        } elseif (is_staff_manager()) {
-            $canManageTarget = $targetUsername !== current_admin_username()
-                && $targetRole === 'staff';
-        }
-
-        if ($canManageTarget) {
+        if (
+            $targetUsername !== current_admin_username()
+            && in_array($targetRole, ['staff', 'staff_manager'], true)
+        ) {
             mysqli_query($connection, "
-                DELETE FROM event_admin_users
+                UPDATE event_admin_users
+                SET role = 'admin'
                 WHERE id = {$id}
                 LIMIT 1
             ");

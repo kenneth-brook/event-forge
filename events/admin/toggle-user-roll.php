@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__ . '/../includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    header('Location: ' . eventforge_admin_path('setup.php'));
+    exit;
+}
+
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 
@@ -20,19 +27,31 @@ if ($id > 0) {
     $result = mysqli_query($connection, $sql);
 
     if ($result && $user = mysqli_fetch_assoc($result)) {
-        if ((string) $user['username'] !== current_admin_username()) {
-            $newRole = ((string) $user['role'] === 'admin') ? 'staff' : 'admin';
-            $newRoleEsc = mysqli_real_escape_string($connection, $newRole);
+        $targetUsername = (string) $user['username'];
+        $targetRole = (string) $user['role'];
 
-            mysqli_query($connection, "
-                UPDATE event_admin_users
-                SET role = '{$newRoleEsc}'
-                WHERE id = {$id}
-                LIMIT 1
-            ");
+        if ($targetUsername !== current_admin_username()) {
+            $newRole = null;
+
+            if ($targetRole === 'staff') {
+                $newRole = 'staff_manager';
+            } elseif ($targetRole === 'staff_manager') {
+                $newRole = 'staff';
+            }
+
+            if ($newRole !== null) {
+                $newRoleEsc = mysqli_real_escape_string($connection, $newRole);
+
+                mysqli_query($connection, "
+                    UPDATE event_admin_users
+                    SET role = '{$newRoleEsc}'
+                    WHERE id = {$id}
+                    LIMIT 1
+                ");
+            }
         }
     }
 }
 
-header('Location: /event-forge/events/admin/settings.php');
+header('Location: ' . eventforge_admin_path('settings.php'));
 exit;

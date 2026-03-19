@@ -46,7 +46,8 @@ if ($id > 0) {
 
         if ($canManageTarget) {
             mysqli_query($connection, "
-                DELETE FROM event_admin_users
+                UPDATE event_admin_users
+                SET is_suspended = 0
                 WHERE id = {$id}
                 LIMIT 1
             ");

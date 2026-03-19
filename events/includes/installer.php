@@ -192,3 +192,40 @@ function eventforge_run_initial_schema(array $config): void
         mysqli_close($connection);
     }
 }
+
+function eventforge_base_path(): string
+{
+    return '/event-forge/events';
+}
+
+function eventforge_admin_path(string $file = 'index.php'): string
+{
+    $base = rtrim(eventforge_base_path(), '/');
+    $file = ltrim($file, '/');
+
+    return "{$base}/admin/{$file}";
+}
+
+function eventforge_asset_path(string $path = ''): string
+{
+    $base = rtrim(eventforge_base_path(), '/');
+    $path = ltrim($path, '/');
+
+    return $path !== '' ? "{$base}/assets/{$path}" : "{$base}/assets";
+}
+
+function eventforge_upload_path(string $path = ''): string
+{
+    $base = rtrim(eventforge_base_path(), '/');
+    $path = ltrim($path, '/');
+
+    return $path !== '' ? "{$base}/uploads/{$path}" : "{$base}/uploads";
+}
+
+function eventforge_public_path(string $path = ''): string
+{
+    $base = rtrim(eventforge_base_path(), '/');
+    $path = ltrim($path, '/');
+
+    return $path !== '' ? "{$base}/{$path}" : $base;
+}

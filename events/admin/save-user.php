@@ -1,11 +1,22 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__ . '/../includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    header('Location: ' . eventforge_admin_path('setup.php'));
+    exit;
+}
+
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 
 require_login();
-require_admin();
+
+if (!can_manage_users()) {
+    http_response_code(403);
+    exit('Access denied.');
+}
 
 $username = trim($_POST['username'] ?? '');
 $password = $_POST['password'] ?? '';
@@ -15,7 +26,21 @@ if ($username === '' || $password === '') {
     exit('Username and password are required.');
 }
 
-if (!in_array($role, ['admin', 'staff'], true)) {
+$allowedRoles = [];
+
+if (can_create_staff_accounts()) {
+    $allowedRoles[] = 'staff';
+}
+
+if (can_create_staff_manager_accounts()) {
+    $allowedRoles[] = 'staff_manager';
+}
+
+if (is_admin()) {
+    $allowedRoles[] = 'admin';
+}
+
+if (!in_array($role, $allowedRoles, true)) {
     $role = 'staff';
 }
 
@@ -36,17 +61,24 @@ if ($checkResult && mysqli_num_rows($checkResult) > 0) {
 }
 
 $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+if ($passwordHash === false) {
+    exit('Could not create password hash.');
+}
+
 $passwordHashEsc = mysqli_real_escape_string($connection, $passwordHash);
 
 $sql = "
     INSERT INTO event_admin_users (
         username,
         password_hash,
-        role
+        role,
+        is_suspended
     ) VALUES (
         '{$usernameEsc}',
         '{$passwordHashEsc}',
-        '{$roleEsc}'
+        '{$roleEsc}',
+        0
     )
 ";
 
@@ -54,5 +86,5 @@ if (!mysqli_query($connection, $sql)) {
     exit('User save failed: ' . mysqli_error($connection));
 }
 
-header('Location: /event-forge/events/admin/settings.php');
+header('Location: ' . eventforge_admin_path('settings.php'));
 exit;
