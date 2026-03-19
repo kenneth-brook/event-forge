@@ -290,7 +290,7 @@ if ($canManageUsers) {
                       </a>
 
                     <?php elseif ($targetRole === 'staff_manager'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-user-role.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this staff manager back to staff?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this staff manager back to staff?');">
                         Make Staff
                       </a>
                       |
