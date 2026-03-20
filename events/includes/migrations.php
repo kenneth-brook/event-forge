@@ -114,6 +114,19 @@ function eventforge_get_migrations(): array
                 }
             }
         },
+
+        4 => function (mysqli $connection): void {
+            if (!eventforge_column_exists($connection, 'event_categories', 'font_color')) {
+                $sql = "
+                    ALTER TABLE event_categories
+                    ADD COLUMN font_color VARCHAR(20) DEFAULT NULL
+                ";
+
+                if (!mysqli_query($connection, $sql)) {
+                    throw new RuntimeException('Failed adding event_categories.font_color: ' . mysqli_error($connection));
+                }
+            }
+        },
     ];
 }
 

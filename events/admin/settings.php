@@ -429,6 +429,7 @@ if (!$categoryResult) {
             <th>Name</th>
             <th>Slug</th>
             <th>Color</th>
+            <th>Font</th>
             <th>Status</th>
             <th>Created</th>
             <th>Actions</th>
@@ -447,9 +448,21 @@ if (!$categoryResult) {
                   <em>None</em>
                 <?php endif; ?>
               </td>
+              <td>
+                <?php if (!empty($category['font_color'])): ?>
+                  <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:<?= htmlspecialchars((string) $category['font_color']) ?>;vertical-align:middle;margin-right:.5rem;border:1px solid #ccc;"></span>
+                  <?= htmlspecialchars((string) $category['font_color']) ?>
+                <?php else: ?>
+                  <em>None</em>
+                <?php endif; ?>
+              </td>
               <td><?= !empty($category['is_active']) ? 'Active' : 'Inactive' ?></td>
               <td><?= htmlspecialchars((string) $category['created_at']) ?></td>
               <td>
+                <a href="<?= htmlspecialchars(eventforge_admin_path('category-form.php')) ?>?id=<?= (int) $category['id'] ?>">
+                  Edit
+                </a>
+                |
                 <a href="<?= htmlspecialchars(eventforge_admin_path('delete-category.php')) ?>?id=<?= (int) $category['id'] ?>" onclick="return confirm('Delete this category?');">
                   Delete
                 </a>

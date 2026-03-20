@@ -21,6 +21,7 @@ if (!can_manage_users()) {
 $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 $name = trim($_POST['name'] ?? '');
 $color = trim($_POST['color'] ?? '');
+$fontColor = trim($_POST['font_color'] ?? '');
 $isActive = isset($_POST['is_active']) ? 1 : 0;
 
 if ($name === '') {
@@ -30,6 +31,7 @@ if ($name === '') {
 $slug = strtolower($name);
 $slug = preg_replace('/[^a-z0-9]+/', '-', $slug);
 $slug = trim((string) $slug, '-');
+
 if ($slug === '') {
     $slug = 'category';
 }
@@ -37,6 +39,10 @@ if ($slug === '') {
 $nameEsc = mysqli_real_escape_string($connection, $name);
 $slugEsc = mysqli_real_escape_string($connection, $slug);
 $colorEsc = mysqli_real_escape_string($connection, $color);
+$fontColorEsc = mysqli_real_escape_string($connection, $fontColor);
+
+$colorSql = $color !== '' ? "'{$colorEsc}'" : 'NULL';
+$fontColorSql = $fontColor !== '' ? "'{$fontColorEsc}'" : 'NULL';
 
 if ($id > 0) {
     $sql = "
@@ -44,7 +50,8 @@ if ($id > 0) {
         SET
             name = '{$nameEsc}',
             slug = '{$slugEsc}',
-            color = " . ($color !== '' ? "'{$colorEsc}'" : "NULL") . ",
+            color = {$colorSql},
+            font_color = {$fontColorSql},
             is_active = {$isActive}
         WHERE id = {$id}
         LIMIT 1
@@ -55,11 +62,13 @@ if ($id > 0) {
             name,
             slug,
             color,
+            font_color,
             is_active
         ) VALUES (
             '{$nameEsc}',
             '{$slugEsc}',
-            " . ($color !== '' ? "'{$colorEsc}'" : "NULL") . ",
+            {$colorSql},
+            {$fontColorSql},
             {$isActive}
         )
     ";

@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__ . '/../includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    header('Location: ' . eventforge_admin_path('setup.php'));
+    exit;
+}
+
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 require __DIR__ . '/../includes/functions.php';
@@ -19,6 +26,7 @@ $summary = trim($_POST['summary'] ?? '');
 $description = trim($_POST['description'] ?? '');
 $externalUrl = trim($_POST['external_url'] ?? '');
 $isPublished = isset($_POST['is_published']) ? 1 : 0;
+
 $categoryId = isset($_POST['category_id']) && $_POST['category_id'] !== ''
     ? (int) $_POST['category_id']
     : 0;
@@ -83,7 +91,7 @@ try {
     );
 
     if ($imageFilename !== null) {
-        $imagePath = '/event-forge/events/uploads/images/' . $imageFilename;
+        $imagePath = eventforge_upload_path('images/' . $imageFilename);
         $imageEsc = mysqli_real_escape_string($connection, $imagePath);
         $imageSqlPart = ", image_path = '{$imageEsc}'";
     }
@@ -96,7 +104,7 @@ try {
     );
 
     if ($pdfFilename !== null) {
-        $pdfPath = '/event-forge/events/uploads/pdfs/' . $pdfFilename;
+        $pdfPath = eventforge_upload_path('pdfs/' . $pdfFilename);
         $pdfEsc = mysqli_real_escape_string($connection, $pdfPath);
         $pdfSqlPart = ", pdf_path = '{$pdfEsc}'";
     }
@@ -163,7 +171,7 @@ if ($id > 0) {
             recurrence_week_of_month,
             recurrence_day_of_week,
             recurrence_end_date,
-            category_id,
+            category_id
         ) VALUES (
             '{$titleEsc}',
             '{$startEsc}',
@@ -183,7 +191,7 @@ if ($id > 0) {
             {$recurrenceWeekOfMonthSql},
             {$recurrenceDayOfWeekSql},
             {$recurrenceEndDateSql},
-            {$categorySql},
+            {$categorySql}
         )
     ";
 }
@@ -211,5 +219,5 @@ if ($savedId > 0) {
     }
 }
 
-header('Location: /event-forge/events/admin/index.php');
+header('Location: ' . eventforge_admin_path('index.php'));
 exit;

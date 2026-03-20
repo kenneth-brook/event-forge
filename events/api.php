@@ -7,6 +7,16 @@ error_reporting(E_ALL);
 
 header('Content-Type: application/json; charset=utf-8');
 
+require __DIR__ . '/includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Event Forge is not installed.',
+    ]);
+    exit;
+}
+
 require __DIR__ . '/includes/db.php';
 
 $hidePastEvents = true;
@@ -28,7 +38,8 @@ $sql = "
         e.is_canceled,
         e.category_id,
         c.name AS category_name,
-        c.color AS category_color
+        c.color AS category_color,
+        c.font_color AS category_font_color
     FROM events e
     LEFT JOIN event_categories c ON e.category_id = c.id
     WHERE e.is_published = 1
@@ -37,13 +48,13 @@ $sql = "
 
 if ($hidePastEvents) {
     if ($keepCurrentMonth) {
-        $sql .= " AND start_datetime >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
+        $sql .= " AND e.start_datetime >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
     } else {
-        $sql .= " AND start_datetime >= NOW()";
+        $sql .= " AND e.start_datetime >= NOW()";
     }
 }
 
-$sql .= " ORDER BY start_datetime ASC";
+$sql .= " ORDER BY e.start_datetime ASC";
 
 $result = mysqli_query($connection, $sql);
 
@@ -61,9 +72,9 @@ $events = [];
 while ($row = mysqli_fetch_assoc($result)) {
     $events[] = [
         'id' => (int) $row['id'],
-        'title' => $row['title'],
-        'start' => $row['start_datetime'],
-        'end' => !empty($row['end_datetime']) ? $row['end_datetime'] : null,
+        'title' => (string) $row['title'],
+        'start' => (string) $row['start_datetime'],
+        'end' => !empty($row['end_datetime']) ? (string) $row['end_datetime'] : null,
         'allDay' => (bool) $row['all_day'],
         'extendedProps' => [
             'location' => $row['location'] ?? '',
@@ -76,6 +87,7 @@ while ($row = mysqli_fetch_assoc($result)) {
             'categoryId' => $row['category_id'] ?? '',
             'categoryName' => $row['category_name'] ?? '',
             'categoryColor' => $row['category_color'] ?? '',
+            'categoryFontColor' => $row['category_font_color'] ?? '',
         ],
     ];
 }

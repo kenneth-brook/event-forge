@@ -26,155 +26,168 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const closeModal = () => {
-    modal.hidden = true;
-    modalImage.removeAttribute('src');
-    modalPdf.removeAttribute('href');
+    if (modal) modal.hidden = true;
+    if (modalImage) modalImage.removeAttribute('src');
+    if (modalPdf) modalPdf.removeAttribute('href');
   };
 
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   if (backdrop) backdrop.addEventListener('click', closeModal);
 
   const calendar = new FullCalendar.Calendar(calendarEl, {
-  initialView: 'dayGridMonth',
-  height: 'auto',
-  fixedWeekCount: false,
-  showNonCurrentDates: false,
-  headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
-  },
-  buttonText: {
-    dayGridMonth: 'Month',
-    timeGridWeek: 'Week',
-    timeGridDay: 'Day',
-    listMonth: 'List'
-  },
-  events: '/event-forge/events/api.php',
-  eventTimeFormat: {
-    hour: 'numeric',
-    minute: '2-digit',
-    meridiem: 'short'
-  },
-  dayMaxEvents: true,
+    initialView: 'dayGridMonth',
+    height: 'auto',
+    fixedWeekCount: false,
+    showNonCurrentDates: false,
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+    },
+    buttonText: {
+      dayGridMonth: 'Month',
+      timeGridWeek: 'Week',
+      timeGridDay: 'Day',
+      listMonth: 'List'
+    },
+    events: '/event-forge/events/api.php',
+    eventTimeFormat: {
+      hour: 'numeric',
+      minute: '2-digit',
+      meridiem: 'short'
+    },
+    dayMaxEvents: true,
 
-  eventDidMount(info) {
-    const props = info.event.extendedProps || {};
-    const isCanceled = !!props.isCanceled;
-    const categoryColor = props.categoryColor || '';
+    eventDidMount(info) {
+      const props = info.event.extendedProps || {};
+      const isCanceled = !!props.isCanceled;
+      const categoryColor = props.categoryColor || '';
+      const categoryFontColor = props.categoryFontColor || '';
 
-    if (isCanceled) {
-      info.el.classList.add('event-canceled');
-    }
+      if (isCanceled) {
+        info.el.classList.add('event-canceled');
+      }
 
-    if (categoryColor) {
-      info.el.style.backgroundColor = categoryColor;
-      info.el.style.borderColor = categoryColor;
-    }
-  },
+      if (categoryColor) {
+        info.el.style.backgroundColor = categoryColor;
+        info.el.style.borderColor = categoryColor;
+      }
 
-  eventClick(info) {
-    info.jsEvent.preventDefault();
+      if (categoryFontColor) {
+        info.el.style.color = categoryFontColor;
 
-    const event = info.event;
-    const props = event.extendedProps || {};
-    const isCanceled = !!props.isCanceled;
+        const textNodes = info.el.querySelectorAll(
+          '.fc-event-title, .fc-event-time, .fc-list-event-title a, .fc-list-event-time'
+        );
 
-    if (modalTitle) {
-      modalTitle.textContent = isCanceled
-        ? `${event.title} (CANCELED)`
-        : event.title;
-    }
+        textNodes.forEach((node) => {
+          node.style.color = categoryFontColor;
+        });
+      }
+    },
 
-    if (modalDate) {
-      if (event.start) {
-        const hasEnd = !!event.end;
-        const isAllDay = !!event.allDay;
+    eventClick(info) {
+      info.jsEvent.preventDefault();
 
-        const dateOptions = {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        };
+      const event = info.event;
+      const props = event.extendedProps || {};
+      const isCanceled = !!props.isCanceled;
 
-        const timeOptions = {
-          hour: 'numeric',
-          minute: '2-digit'
-        };
+      if (modalTitle) {
+        modalTitle.textContent = isCanceled
+          ? `${event.title} (CANCELED)`
+          : event.title;
+      }
 
-        const startDate = event.start.toLocaleDateString(undefined, dateOptions);
+      if (modalDate) {
+        if (event.start) {
+          const hasEnd = !!event.end;
+          const isAllDay = !!event.allDay;
 
-        if (isAllDay) {
-          modalDate.textContent = `${startDate} • All Day`;
-        } else {
-          const startTime = event.start.toLocaleTimeString(undefined, timeOptions);
+          const dateOptions = {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          };
 
-          if (hasEnd) {
-            const sameDay = event.start.toDateString() === event.end.toDateString();
+          const timeOptions = {
+            hour: 'numeric',
+            minute: '2-digit'
+          };
 
-            if (sameDay) {
-              const endTime = event.end.toLocaleTimeString(undefined, timeOptions);
-              modalDate.textContent = `${startDate} • ${startTime} - ${endTime}`;
-            } else {
-              const endDate = event.end.toLocaleDateString(undefined, dateOptions);
-              const endTime = event.end.toLocaleTimeString(undefined, timeOptions);
-              modalDate.textContent = `${startDate} • ${startTime} through ${endDate} • ${endTime}`;
-            }
+          const startDate = event.start.toLocaleDateString(undefined, dateOptions);
+
+          if (isAllDay) {
+            modalDate.textContent = `${startDate} • All Day`;
           } else {
-            modalDate.textContent = `${startDate} • ${startTime}`;
+            const startTime = event.start.toLocaleTimeString(undefined, timeOptions);
+
+            if (hasEnd) {
+              const sameDay = event.start.toDateString() === event.end.toDateString();
+
+              if (sameDay) {
+                const endTime = event.end.toLocaleTimeString(undefined, timeOptions);
+                modalDate.textContent = `${startDate} • ${startTime} - ${endTime}`;
+              } else {
+                const endDate = event.end.toLocaleDateString(undefined, dateOptions);
+                const endTime = event.end.toLocaleTimeString(undefined, timeOptions);
+                modalDate.textContent = `${startDate} • ${startTime} through ${endDate} • ${endTime}`;
+              }
+            } else {
+              modalDate.textContent = `${startDate} • ${startTime}`;
+            }
           }
+        } else {
+          modalDate.textContent = '';
         }
-      } else {
-        modalDate.textContent = '';
       }
-    }
 
-    if (modalLocationWrap && modalLocation) {
-      if (props.location) {
-        modalLocation.textContent = props.location;
-        modalLocationWrap.hidden = false;
-      } else {
-        modalLocation.textContent = '';
-        modalLocationWrap.hidden = true;
+      if (modalLocationWrap && modalLocation) {
+        if (props.location) {
+          modalLocation.textContent = props.location;
+          modalLocationWrap.hidden = false;
+        } else {
+          modalLocation.textContent = '';
+          modalLocationWrap.hidden = true;
+        }
       }
-    }
 
-    if (modalDescriptionWrap && modalDescription) {
-      if (props.description) {
-        modalDescription.textContent = props.description;
-        modalDescriptionWrap.hidden = false;
-      } else {
-        modalDescription.textContent = '';
-        modalDescriptionWrap.hidden = true;
+      if (modalDescriptionWrap && modalDescription) {
+        if (props.description) {
+          modalDescription.textContent = props.description;
+          modalDescriptionWrap.hidden = false;
+        } else {
+          modalDescription.textContent = '';
+          modalDescriptionWrap.hidden = true;
+        }
       }
-    }
 
-    if (modalImageWrap && modalImage) {
-      if (props.image) {
-        modalImage.src = props.image;
-        modalImage.alt = event.title;
-        modalImageWrap.hidden = false;
-      } else {
-        modalImage.removeAttribute('src');
-        modalImage.alt = '';
-        modalImageWrap.hidden = true;
+      if (modalImageWrap && modalImage) {
+        if (props.image) {
+          modalImage.src = props.image;
+          modalImage.alt = event.title;
+          modalImageWrap.hidden = false;
+        } else {
+          modalImage.removeAttribute('src');
+          modalImage.alt = '';
+          modalImageWrap.hidden = true;
+        }
       }
-    }
 
-    if (modalPdfWrap && modalPdf) {
-      if (props.pdf) {
-        modalPdf.href = props.pdf;
-        modalPdfWrap.hidden = false;
-      } else {
-        modalPdf.removeAttribute('href');
-        modalPdfWrap.hidden = true;
+      if (modalPdfWrap && modalPdf) {
+        if (props.pdf) {
+          modalPdf.href = props.pdf;
+          modalPdfWrap.hidden = false;
+        } else {
+          modalPdf.removeAttribute('href');
+          modalPdfWrap.hidden = true;
+        }
       }
-    }
 
-    if (modal) modal.hidden = false;
-  }
-});
+      if (modal) modal.hidden = false;
+    }
+  });
 
   calendar.render();
 });

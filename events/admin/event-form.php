@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__ . '/../includes/installer.php';
+
+if (!eventforge_is_installed()) {
+    header('Location: ' . eventforge_admin_path('setup.php'));
+    exit;
+}
+
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 
@@ -167,14 +174,27 @@ $weekdayOptions = [
       display: block;
       margin-top: .5rem;
     }
+
+    .help-badge {
+      display: inline-block;
+      border: 1px solid #3f6244;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: .85rem;
+      line-height: 1;
+      color: #3f6244;
+      cursor: help;
+      vertical-align: middle;
+      margin-left: .35rem;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1><?= $id > 0 ? 'Edit Event' : 'Add Event' ?></h1>
-    <p><a href="/event-forge/events/admin/index.php">← Back to events</a></p>
+    <p><a href="<?= htmlspecialchars(eventforge_admin_path('index.php')) ?>">← Back to events</a></p>
 
-    <form method="post" action="/event-forge/events/admin/save-event.php" enctype="multipart/form-data">
+    <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-event.php')) ?>" enctype="multipart/form-data">
       <input type="hidden" name="id" value="<?= (int) $event['id'] ?>">
 
       <label for="title">Title</label>
@@ -293,7 +313,10 @@ $weekdayOptions = [
 
       <label for="recurrence_interval">
         Repeat Every
-        <span style="border: 2px solid red; border-radius: 50px; padding: 3px 7px;" title="For weekly recurrence: 1 means every week, 2 means every other week. For monthly recurrence: 1 means every month, 2 means every other month.">?</span>
+        <span
+          class="help-badge"
+          title="For weekly recurrence: 1 means every week, 2 means every other week. For monthly recurrence: 1 means every month, 2 means every other month."
+        >?</span>
       </label>
       <input
         id="recurrence_interval"
