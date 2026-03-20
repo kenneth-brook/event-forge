@@ -59,10 +59,17 @@ document.addEventListener('DOMContentLoaded', () => {
   dayMaxEvents: true,
 
   eventDidMount(info) {
-    const isCanceled = !!info.event.extendedProps.isCanceled;
+    const props = info.event.extendedProps || {};
+    const isCanceled = !!props.isCanceled;
+    const categoryColor = props.categoryColor || '';
 
     if (isCanceled) {
       info.el.classList.add('event-canceled');
+    }
+
+    if (categoryColor) {
+      info.el.style.backgroundColor = categoryColor;
+      info.el.style.borderColor = categoryColor;
     }
   },
 

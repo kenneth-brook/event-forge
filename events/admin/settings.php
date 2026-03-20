@@ -36,6 +36,16 @@ if ($canManageUsers) {
         exit('User query failed: ' . mysqli_error($connection));
     }
 }
+
+$categoryResult = mysqli_query($connection, "
+    SELECT id, name, slug, color, is_active, created_at
+    FROM event_categories
+    ORDER BY name ASC
+");
+
+if (!$categoryResult) {
+    exit('Category query failed: ' . mysqli_error($connection));
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -406,6 +416,70 @@ if ($canManageUsers) {
         </p>
       </div>
     <?php endif; ?>
+
+    <div class="settings-section">
+      <h2>Event Categories</h2>
+      <p class="note">
+        Categories can be assigned to events and used for color-coded display.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Slug</th>
+            <th>Color</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php while ($category = mysqli_fetch_assoc($categoryResult)): ?>
+            <tr>
+              <td><?= htmlspecialchars((string) $category['name']) ?></td>
+              <td><?= htmlspecialchars((string) $category['slug']) ?></td>
+              <td>
+                <?php if (!empty($category['color'])): ?>
+                  <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:<?= htmlspecialchars((string) $category['color']) ?>;vertical-align:middle;margin-right:.5rem;border:1px solid #ccc;"></span>
+                  <?= htmlspecialchars((string) $category['color']) ?>
+                <?php else: ?>
+                  <em>None</em>
+                <?php endif; ?>
+              </td>
+              <td><?= !empty($category['is_active']) ? 'Active' : 'Inactive' ?></td>
+              <td><?= htmlspecialchars((string) $category['created_at']) ?></td>
+              <td>
+                <a href="<?= htmlspecialchars(eventforge_admin_path('delete-category.php')) ?>?id=<?= (int) $category['id'] ?>" onclick="return confirm('Delete this category?');">
+                  Delete
+                </a>
+              </td>
+            </tr>
+          <?php endwhile; ?>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:1.5rem;">Add Category</h3>
+
+      <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-category.php')) ?>">
+        <input type="hidden" name="id" value="0">
+
+        <label for="category_name">Name</label>
+        <input id="category_name" name="name" type="text" required>
+
+        <label for="category_color">Color</label>
+        <input id="category_color" name="color" type="text" placeholder="#3f6244">
+
+        <label style="margin-top:1rem;">
+          <input type="checkbox" name="is_active" value="1" checked>
+          Active
+        </label>
+
+        <div class="form-actions">
+          <button type="submit">Save Category</button>
+        </div>
+      </form>
+    </div>
 
     <div class="settings-section">
       <h2>General Controls</h2>

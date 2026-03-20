@@ -42,6 +42,78 @@ function eventforge_get_migrations(): array
                 }
             }
         },
+
+        3 => function (mysqli $connection): void {
+            $tableSql = "
+                CREATE TABLE IF NOT EXISTS event_categories (
+                    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    name VARCHAR(100) NOT NULL,
+                    slug VARCHAR(120) DEFAULT NULL,
+                    color VARCHAR(20) DEFAULT NULL,
+                    is_active TINYINT(1) NOT NULL DEFAULT 1,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE KEY uq_event_categories_name (name)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ";
+
+            if (!mysqli_query($connection, $tableSql)) {
+                throw new RuntimeException('Failed creating event_categories: ' . mysqli_error($connection));
+            }
+
+            if (!eventforge_column_exists($connection, 'events', 'category_id')) {
+                $sql = "
+                    ALTER TABLE events
+                    ADD COLUMN category_id INT UNSIGNED DEFAULT NULL
+                ";
+
+                if (!mysqli_query($connection, $sql)) {
+                    throw new RuntimeException('Failed adding events.category_id: ' . mysqli_error($connection));
+                }
+            }
+
+            $indexCheckSql = "
+                SELECT 1
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                AND table_name = 'events'
+                AND index_name = 'idx_events_category_id'
+                LIMIT 1
+            ";
+            $indexCheckResult = mysqli_query($connection, $indexCheckSql);
+
+            if (!$indexCheckResult || mysqli_num_rows($indexCheckResult) === 0) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_category_id (category_id)")) {
+                    throw new RuntimeException('Failed adding idx_events_category_id: ' . mysqli_error($connection));
+                }
+            }
+
+            $fkCheckSql = "
+                SELECT 1
+                FROM information_schema.table_constraints
+                WHERE table_schema = DATABASE()
+                AND table_name = 'events'
+                AND constraint_name = 'fk_events_category'
+                AND constraint_type = 'FOREIGN KEY'
+                LIMIT 1
+            ";
+            $fkCheckResult = mysqli_query($connection, $fkCheckSql);
+
+            if (!$fkCheckResult || mysqli_num_rows($fkCheckResult) === 0) {
+                $fkSql = "
+                    ALTER TABLE events
+                    ADD CONSTRAINT fk_events_category
+                    FOREIGN KEY (category_id)
+                    REFERENCES event_categories(id)
+                    ON DELETE SET NULL
+                ";
+
+                if (!mysqli_query($connection, $fkSql)) {
+                    throw new RuntimeException('Failed adding fk_events_category: ' . mysqli_error($connection));
+                }
+            }
+        },
     ];
 }
 

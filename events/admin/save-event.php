@@ -19,6 +19,10 @@ $summary = trim($_POST['summary'] ?? '');
 $description = trim($_POST['description'] ?? '');
 $externalUrl = trim($_POST['external_url'] ?? '');
 $isPublished = isset($_POST['is_published']) ? 1 : 0;
+$categoryId = isset($_POST['category_id']) && $_POST['category_id'] !== ''
+    ? (int) $_POST['category_id']
+    : 0;
+$categorySql = $categoryId > 0 ? (string) $categoryId : 'NULL';
 
 /*
 |--------------------------------------------------------------------------
@@ -118,7 +122,8 @@ if ($id > 0) {
             recurrence_days = {$recurrenceDaysSql},
             recurrence_week_of_month = {$recurrenceWeekOfMonthSql},
             recurrence_day_of_week = {$recurrenceDayOfWeekSql},
-            recurrence_end_date = {$recurrenceEndDateSql}
+            recurrence_end_date = {$recurrenceEndDateSql},
+            category_id = {$categorySql},
             {$imageSqlPart}
             {$pdfSqlPart}
         WHERE id = {$id}
@@ -157,7 +162,8 @@ if ($id > 0) {
             recurrence_days,
             recurrence_week_of_month,
             recurrence_day_of_week,
-            recurrence_end_date
+            recurrence_end_date,
+            category_id,
         ) VALUES (
             '{$titleEsc}',
             '{$startEsc}',
@@ -176,7 +182,8 @@ if ($id > 0) {
             {$recurrenceDaysSql},
             {$recurrenceWeekOfMonthSql},
             {$recurrenceDayOfWeekSql},
-            {$recurrenceEndDateSql}
+            {$recurrenceEndDateSql},
+            {$categorySql},
         )
     ";
 }

@@ -21,6 +21,7 @@ $event = [
     'pdf_path' => '',
     'external_url' => '',
     'is_published' => 1,
+    'category_id' => '',
 
     // Recurrence fields
     'parent_event_id' => '',
@@ -42,6 +43,17 @@ if ($id > 0) {
     if ($result && $row = mysqli_fetch_assoc($result)) {
         $event = array_merge($event, $row);
     }
+}
+
+$categoryResult = mysqli_query($connection, "
+    SELECT id, name
+    FROM event_categories
+    WHERE is_active = 1
+    ORDER BY name ASC
+");
+
+if (!$categoryResult) {
+    exit('Category query failed: ' . mysqli_error($connection));
 }
 
 $selectedDays = !empty($event['recurrence_days'])
@@ -209,6 +221,19 @@ $weekdayOptions = [
         type="text"
         value="<?= htmlspecialchars((string) $event['location']) ?>"
       >
+
+      <label for="category_id">Category</label>
+      <select id="category_id" name="category_id">
+        <option value="">None</option>
+        <?php while ($category = mysqli_fetch_assoc($categoryResult)): ?>
+          <option
+            value="<?= (int) $category['id'] ?>"
+            <?= !empty($event['category_id']) && (int) $event['category_id'] === (int) $category['id'] ? 'selected' : '' ?>
+          >
+            <?= htmlspecialchars((string) $category['name']) ?>
+          </option>
+        <?php endwhile; ?>
+      </select>
 
       <label for="summary">Summary</label>
       <textarea id="summary" name="summary"><?= htmlspecialchars((string) $event['summary']) ?></textarea>

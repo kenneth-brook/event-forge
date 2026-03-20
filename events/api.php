@@ -14,21 +14,25 @@ $keepCurrentMonth = true;
 
 $sql = "
     SELECT
-        id,
-        title,
-        start_datetime,
-        end_datetime,
-        all_day,
-        location,
-        summary,
-        description,
-        image_path,
-        pdf_path,
-        external_url,
-        is_canceled
-    FROM events
-    WHERE is_published = 1
-      AND (is_recurring_parent = 0 OR is_recurring_parent IS NULL)
+        e.id,
+        e.title,
+        e.start_datetime,
+        e.end_datetime,
+        e.all_day,
+        e.location,
+        e.summary,
+        e.description,
+        e.image_path,
+        e.pdf_path,
+        e.external_url,
+        e.is_canceled,
+        e.category_id,
+        c.name AS category_name,
+        c.color AS category_color
+    FROM events e
+    LEFT JOIN event_categories c ON e.category_id = c.id
+    WHERE e.is_published = 1
+      AND (e.is_recurring_parent = 0 OR e.is_recurring_parent IS NULL)
 ";
 
 if ($hidePastEvents) {
@@ -69,6 +73,9 @@ while ($row = mysqli_fetch_assoc($result)) {
             'pdf' => $row['pdf_path'] ?? '',
             'externalUrl' => $row['external_url'] ?? '',
             'isCanceled' => (bool) ($row['is_canceled'] ?? 0),
+            'categoryId' => $row['category_id'] ?? '',
+            'categoryName' => $row['category_name'] ?? '',
+            'categoryColor' => $row['category_color'] ?? '',
         ],
     ];
 }
