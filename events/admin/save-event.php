@@ -115,6 +115,7 @@ if ($id > 0) {
             summary = '{$summaryEsc}',
             description = '{$descriptionEsc}',
             external_url = '{$externalUrlEsc}',
+            category_id = {$categorySql},
             is_published = {$isPublished},
             is_recurring_parent = {$isRecurringParent},
             recurrence_type = {$recurrenceTypeSql},
@@ -122,8 +123,7 @@ if ($id > 0) {
             recurrence_days = {$recurrenceDaysSql},
             recurrence_week_of_month = {$recurrenceWeekOfMonthSql},
             recurrence_day_of_week = {$recurrenceDayOfWeekSql},
-            recurrence_end_date = {$recurrenceEndDateSql},
-            category_id = {$categorySql},
+            recurrence_end_date = {$recurrenceEndDateSql}
             {$imageSqlPart}
             {$pdfSqlPart}
         WHERE id = {$id}
