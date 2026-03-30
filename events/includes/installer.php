@@ -229,3 +229,19 @@ function eventforge_public_path(string $path = ''): string
 
     return $path !== '' ? "{$base}/{$path}" : $base;
 }
+
+function eventforge_site_url(): string
+{
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+    return $scheme . '://' . $host;
+}
+
+function eventforge_absolute_url(string $path = ''): string
+{
+    $base = rtrim(eventforge_site_url(), '/');
+    $path = ltrim($path, '/');
+
+    return $path !== '' ? "{$base}/{$path}" : $base;
+}

@@ -4,7 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/../includes/installer.php';
 
 if (!eventforge_is_installed()) {
-    header('Location: /event-forge/events/admin/setup.php');
+    header('Location: ' . eventforge_admin_path('setup.php'));
     exit;
 }
 
@@ -17,6 +17,7 @@ $sql = "
     SELECT
         id,
         title,
+        slug,
         start_datetime,
         end_datetime,
         is_published,
@@ -140,58 +141,58 @@ if (!$result) {
     }
 
     .topbar-right {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-  flex-wrap: wrap;
-}
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
 
-.account-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  background: #ffffff;
-  border: 1px solid #d7dde5;
-  border-radius: 999px;
-  padding: .45rem .75rem;
-}
+    .account-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: #ffffff;
+      border: 1px solid #d7dde5;
+      border-radius: 999px;
+      padding: .45rem .75rem;
+    }
 
-.account-chip__name {
-  font-weight: 600;
-  color: #1f2937;
-}
+    .account-chip__name {
+      font-weight: 600;
+      color: #1f2937;
+    }
 
-.account-chip__role {
-  display: inline-block;
-  background: #3f6244;
-  color: #ffffff;
-  font-size: .75rem;
-  font-weight: 700;
-  letter-spacing: .03em;
-  border-radius: 999px;
-  padding: .2rem .5rem;
-}
+    .account-chip__role {
+      display: inline-block;
+      background: #3f6244;
+      color: #ffffff;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .03em;
+      border-radius: 999px;
+      padding: .2rem .5rem;
+    }
   </style>
 </head>
 <body>
   <div class="topbar">
-  <h1>Manage Events</h1>
+    <h1>Manage Events</h1>
 
-  <div class="topbar-right">
-    <div class="account-chip">
-      <span class="account-chip__name"><?= htmlspecialchars(current_admin_username()) ?></span>
-      <span class="account-chip__role"><?= htmlspecialchars(strtoupper(current_admin_role())) ?></span>
+    <div class="topbar-right">
+      <div class="account-chip">
+        <span class="account-chip__name"><?= htmlspecialchars(current_admin_username()) ?></span>
+        <span class="account-chip__role"><?= htmlspecialchars(strtoupper(current_admin_role())) ?></span>
+      </div>
+
+      <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>">Add Event</a>
+
+      <?php if (is_admin()): ?>
+        <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('settings.php')) ?>">Settings</a>
+      <?php endif; ?>
+
+      <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('logout.php')) ?>">Log Out</a>
     </div>
-
-    <a class="button" href="/event-forge/events/admin/event-form.php">Add Event</a>
-
-    <?php if (is_admin()): ?>
-      <a class="button" href="/event-forge/events/admin/settings.php">Settings</a>
-    <?php endif; ?>
-
-    <a class="button" href="/event-forge/events/admin/logout.php">Log Out</a>
   </div>
-</div>
 
   <table>
     <thead>
@@ -211,6 +212,11 @@ if (!$result) {
         $hasParent = !empty($row['parent_event_id']);
         $isIndependent = !empty($row['is_independent_child']);
         $isCanceled = !empty($row['is_canceled']);
+
+        $eventUrl = eventforge_public_path('event.php') . '?id=' . (int) $row['id'];
+        if (!empty($row['slug'])) {
+            $eventUrl .= '&slug=' . urlencode((string) $row['slug']);
+        }
         ?>
         <tr
           <?php if ($hasParent && !$isParent): ?>
@@ -262,7 +268,7 @@ if (!$result) {
           <td>
             <?= !empty($row['is_published']) ? 'Yes' : 'No' ?>
             |
-            <a href="/event-forge/events/admin/toggle-publish.php?id=<?= (int) $row['id'] ?>">
+            <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-publish.php')) ?>?id=<?= (int) $row['id'] ?>">
               <?= !empty($row['is_published']) ? 'Unpublish' : 'Publish' ?>
             </a>
           </td>
@@ -271,37 +277,41 @@ if (!$result) {
             <?php if ($hasParent && !$isIndependent && !$isParent): ?>
               <div><em>Generated from series</em></div>
               <div>
+                <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $row['id'] ?>">View</a>
+                |
                 <a
-                  href="/event-forge/events/admin/make-independent.php?id=<?= (int) $row['id'] ?>"
-                  title="This child will remain grouped under the parent series, but future series updates will not overwrite it."
+                  href="<?= htmlspecialchars(eventforge_admin_path('make-independent.php')) ?>?id=<?= (int) $row['id'] ?>"
+                  title="This child will remain grouped under the parent series, but future parent changes will not overwrite it."
                   onclick="return confirm('Make this generated child independent? Future parent changes will no longer overwrite this event.');"
                 >
                   Make Independent
                 </a>
                 |
                 <?php if ($isCanceled): ?>
-                  <a href="/event-forge/events/admin/uncancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">
+                  <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">
                     Uncancel
                   </a>
                 <?php else: ?>
-                  <a href="/event-forge/events/admin/cancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event? This will also make it independent from the series.');">
+                  <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event? This will also make it independent from the series.');">
                     Cancel
                   </a>
                 <?php endif; ?>
               </div>
 
             <?php elseif ($isParent): ?>
-              <a href="/event-forge/events/admin/event-form.php?id=<?= (int) $row['id'] ?>">Edit</a> |
-              <a href="/event-forge/events/admin/delete-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event and its generated children?');">Delete</a>
+              <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $row['id'] ?>">View</a> |
+              <a href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>?id=<?= (int) $row['id'] ?>">Edit</a> |
+              <a href="<?= htmlspecialchars(eventforge_admin_path('delete-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event and its generated children?');">Delete</a>
 
             <?php else: ?>
-              <a href="/event-forge/events/admin/event-form.php?id=<?= (int) $row['id'] ?>">Edit</a> |
+              <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $row['id'] ?>">View</a> |
+              <a href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>?id=<?= (int) $row['id'] ?>">Edit</a> |
               <?php if ($isCanceled): ?>
-                <a href="/event-forge/events/admin/uncancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">Uncancel</a> |
+                <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">Uncancel</a> |
               <?php else: ?>
-                <a href="/event-forge/events/admin/cancel-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event?');">Cancel</a> |
+                <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event?');">Cancel</a> |
               <?php endif; ?>
-              <a href="/event-forge/events/admin/delete-event.php?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event?');">Delete</a>
+              <a href="<?= htmlspecialchars(eventforge_admin_path('delete-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event?');">Delete</a>
             <?php endif; ?>
           </td>
         </tr>
