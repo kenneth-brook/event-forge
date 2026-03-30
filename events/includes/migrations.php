@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/system.php';
+require_once __DIR__ . '/functions.php';
 
 function eventforge_column_exists(mysqli $connection, string $table, string $column): bool
 {
@@ -153,6 +154,38 @@ function eventforge_get_migrations(): array
             if (!$indexCheckResult || mysqli_num_rows($indexCheckResult) === 0) {
                 if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_slug (slug)")) {
                     throw new RuntimeException('Failed adding idx_events_slug: ' . mysqli_error($connection));
+                }
+            }
+        },
+
+        6 => function (mysqli $connection): void {
+            $result = mysqli_query($connection, "
+                SELECT id, title
+                FROM events
+                WHERE slug IS NULL OR slug = ''
+                ORDER BY id ASC
+            ");
+
+            if (!$result) {
+                throw new RuntimeException('Failed selecting events for slug backfill: ' . mysqli_error($connection));
+            }
+
+            while ($row = mysqli_fetch_assoc($result)) {
+                $eventId = (int) $row['id'];
+                $title = (string) ($row['title'] ?? '');
+
+                $slug = eventforge_unique_event_slug($connection, $title, $eventId);
+                $slugEsc = mysqli_real_escape_string($connection, $slug);
+
+                $updateSql = "
+                    UPDATE events
+                    SET slug = '{$slugEsc}'
+                    WHERE id = {$eventId}
+                    LIMIT 1
+                ";
+
+                if (!mysqli_query($connection, $updateSql)) {
+                    throw new RuntimeException('Failed backfilling slug for event ' . $eventId . ': ' . mysqli_error($connection));
                 }
             }
         },
