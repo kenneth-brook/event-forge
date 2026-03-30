@@ -186,3 +186,37 @@
 #resident-calendar .fc-list-event.event-canceled .fc-list-event-title a {
   text-decoration: inherit !important;
 }
+
+.calendar-category-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #d9e1db;
+}
+
+.calendar-category-key__item {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .95rem;
+}
+
+.calendar-category-key__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,.15);
+  display: inline-block;
+}
+
+.fc-event-dot,
+.fc-list-event-dot,
+.fc-daygrid-event-dot {
+  display: none !important;
+}
+
+.fc-list-event-title {
+  font-weight: 600;
+}

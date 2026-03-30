@@ -111,6 +111,8 @@ function eventforge_insert_child_event(mysqli $connection, array $parent, string
     $imagePath = mysqli_real_escape_string($connection, (string) ($parent['image_path'] ?? ''));
     $pdfPath = mysqli_real_escape_string($connection, (string) ($parent['pdf_path'] ?? ''));
     $externalUrl = mysqli_real_escape_string($connection, (string) ($parent['external_url'] ?? ''));
+    $categoryId = !empty($parent['category_id']) ? (int) $parent['category_id'] : 0;
+    $categorySql = $categoryId > 0 ? (string) $categoryId : 'NULL';
 
     $startTime = eventforge_parse_time_parts((string) $parent['start_datetime']);
     $startDatetime = eventforge_build_datetime($instanceDate, $startTime);
@@ -166,6 +168,7 @@ function eventforge_insert_child_event(mysqli $connection, array $parent, string
             pdf_path,
             external_url,
             is_published,
+            category_id,
             recurrence_instance_date
         ) VALUES (
             {$parentId},
@@ -180,6 +183,7 @@ function eventforge_insert_child_event(mysqli $connection, array $parent, string
             {$pdfSql},
             {$externalSql},
             {$isPublished},
+            {$categorySql},
             '{$instanceDateEsc}'
         )
     ";

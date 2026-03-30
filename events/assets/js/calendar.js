@@ -207,9 +207,16 @@ document.addEventListener('DOMContentLoaded', () => {
           const name = item.name || 'Uncategorized';
 
           return `
-            <span class="calendar-category-key__item">
-              <span class="calendar-category-key__swatch" style="background:${color};"></span>
-              <span style="color:${fontColor};">${name}</span>
+            <span 
+              class="calendar-category-key__item"
+              style="
+                background:${color};
+                color:${fontColor || '#ffffff'};
+                padding:2px 8px;
+                border-radius:999px;
+              "
+            >
+              ${name}
             </span>
           `;
         }).join('');
