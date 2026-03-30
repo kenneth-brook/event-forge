@@ -423,6 +423,10 @@ if (!$categoryResult) {
         Categories can be assigned to events and used for color-coded display.
       </p>
 
+      <p style="margin-top:1rem;">
+        <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('category-form.php')) ?>">Add Category</a>
+      </p>
+
       <table>
         <thead>
           <tr>
@@ -440,6 +444,7 @@ if (!$categoryResult) {
             <tr>
               <td><?= htmlspecialchars((string) $category['name']) ?></td>
               <td><?= htmlspecialchars((string) $category['slug']) ?></td>
+
               <td>
                 <?php if (!empty($category['color'])): ?>
                   <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:<?= htmlspecialchars((string) $category['color']) ?>;vertical-align:middle;margin-right:.5rem;border:1px solid #ccc;"></span>
@@ -448,6 +453,7 @@ if (!$categoryResult) {
                   <em>None</em>
                 <?php endif; ?>
               </td>
+
               <td>
                 <?php if (!empty($category['font_color'])): ?>
                   <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:<?= htmlspecialchars((string) $category['font_color']) ?>;vertical-align:middle;margin-right:.5rem;border:1px solid #ccc;"></span>
@@ -456,42 +462,18 @@ if (!$categoryResult) {
                   <em>None</em>
                 <?php endif; ?>
               </td>
+
               <td><?= !empty($category['is_active']) ? 'Active' : 'Inactive' ?></td>
               <td><?= htmlspecialchars((string) $category['created_at']) ?></td>
               <td>
-                <a href="<?= htmlspecialchars(eventforge_admin_path('category-form.php')) ?>?id=<?= (int) $category['id'] ?>">
-                  Edit
-                </a>
+                <a href="<?= htmlspecialchars(eventforge_admin_path('category-form.php')) ?>?id=<?= (int) $category['id'] ?>">Edit</a>
                 |
-                <a href="<?= htmlspecialchars(eventforge_admin_path('delete-category.php')) ?>?id=<?= (int) $category['id'] ?>" onclick="return confirm('Delete this category?');">
-                  Delete
-                </a>
+                <a href="<?= htmlspecialchars(eventforge_admin_path('delete-category.php')) ?>?id=<?= (int) $category['id'] ?>" onclick="return confirm('Delete this category?');">Delete</a>
               </td>
             </tr>
           <?php endwhile; ?>
         </tbody>
       </table>
-
-      <h3 style="margin-top:1.5rem;">Add Category</h3>
-
-      <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-category.php')) ?>">
-        <input type="hidden" name="id" value="0">
-
-        <label for="category_name">Name</label>
-        <input id="category_name" name="name" type="text" required>
-
-        <label for="category_color">Color</label>
-        <input id="category_color" name="color" type="text" placeholder="#3f6244">
-
-        <label style="margin-top:1rem;">
-          <input type="checkbox" name="is_active" value="1" checked>
-          Active
-        </label>
-
-        <div class="form-actions">
-          <button type="submit">Save Category</button>
-        </div>
-      </form>
     </div>
 
     <div class="settings-section">

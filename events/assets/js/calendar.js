@@ -190,4 +190,47 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   calendar.render();
+  const keyEl = ensureCategoryKey(calendarEl);
+
+  if (keyEl) {
+    fetch('/event-forge/events/categories.php')
+      .then((response) => response.json())
+      .then((items) => {
+        if (!Array.isArray(items) || items.length === 0) {
+          keyEl.innerHTML = '';
+          return;
+        }
+
+        keyEl.innerHTML = items.map((item) => {
+          const color = item.color || '#cccccc';
+          const fontColor = item.fontColor || '#1f2937';
+          const name = item.name || 'Uncategorized';
+
+          return `
+            <span class="calendar-category-key__item">
+              <span class="calendar-category-key__swatch" style="background:${color};"></span>
+              <span style="color:${fontColor};">${name}</span>
+            </span>
+          `;
+        }).join('');
+      })
+      .catch((err) => {
+        console.error('Category key failed to load.', err);
+        keyEl.innerHTML = '';
+      });
+  }
 });
+
+function ensureCategoryKey(calendarEl) {
+    let keyEl = document.getElementById('calendar-category-key');
+
+    if (keyEl) return keyEl;
+
+    keyEl = document.createElement('div');
+    keyEl.id = 'calendar-category-key';
+    keyEl.className = 'calendar-category-key';
+
+    calendarEl.insertAdjacentElement('afterend', keyEl);
+
+    return keyEl;
+  }
