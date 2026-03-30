@@ -31,3 +31,44 @@ function upload_file(array $file, array $allowedExtensions, string $targetDir, s
 
     return $filename;
 }
+
+function eventforge_slugify(string $text): string
+{
+    $text = strtolower(trim($text));
+    $text = preg_replace('/[^a-z0-9]+/', '-', $text);
+    $text = trim((string) $text, '-');
+
+    return $text !== '' ? $text : 'event';
+}
+
+function eventforge_unique_event_slug(mysqli $connection, string $title, int $excludeId = 0): string
+{
+    $baseSlug = eventforge_slugify($title);
+    $slug = $baseSlug;
+    $counter = 2;
+
+    while (true) {
+        $slugEsc = mysqli_real_escape_string($connection, $slug);
+
+        $sql = "
+            SELECT id
+            FROM events
+            WHERE slug = '{$slugEsc}'
+        ";
+
+        if ($excludeId > 0) {
+            $sql .= " AND id != {$excludeId}";
+        }
+
+        $sql .= " LIMIT 1";
+
+        $result = mysqli_query($connection, $sql);
+
+        if ($result && mysqli_num_rows($result) === 0) {
+            return $slug;
+        }
+
+        $slug = $baseSlug . '-' . $counter;
+        $counter++;
+    }
+}

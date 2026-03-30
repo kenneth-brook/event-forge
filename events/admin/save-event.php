@@ -55,6 +55,9 @@ if ($title === '' || $startDatetime === '') {
     exit('Title and start date/time are required.');
 }
 
+$slug = eventforge_unique_event_slug($connection, $title, $id);
+$slugEsc = mysqli_real_escape_string($connection, $slug);
+
 $titleEsc = mysqli_real_escape_string($connection, $title);
 $startEsc = mysqli_real_escape_string($connection, str_replace('T', ' ', $startDatetime) . ':00');
 $endEsc = $endDatetime !== ''
@@ -131,6 +134,7 @@ if ($id > 0) {
             recurrence_days = {$recurrenceDaysSql},
             recurrence_week_of_month = {$recurrenceWeekOfMonthSql},
             recurrence_day_of_week = {$recurrenceDayOfWeekSql},
+            slug = '{$slugEsc}',
             recurrence_end_date = {$recurrenceEndDateSql}
             {$imageSqlPart}
             {$pdfSqlPart}
@@ -154,6 +158,7 @@ if ($id > 0) {
     $sql = "
         INSERT INTO events (
             title,
+            slug,
             start_datetime,
             end_datetime,
             all_day,
@@ -174,6 +179,7 @@ if ($id > 0) {
             category_id
         ) VALUES (
             '{$titleEsc}',
+            '{$slugEsc}',
             '{$startEsc}',
             {$endEsc},
             {$allDay},

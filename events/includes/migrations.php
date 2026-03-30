@@ -127,6 +127,35 @@ function eventforge_get_migrations(): array
                 }
             }
         },
+
+        5 => function (mysqli $connection): void {
+            if (!eventforge_column_exists($connection, 'events', 'slug')) {
+                $sql = "
+                    ALTER TABLE events
+                    ADD COLUMN slug VARCHAR(255) DEFAULT NULL
+                ";
+
+                if (!mysqli_query($connection, $sql)) {
+                    throw new RuntimeException('Failed adding events.slug: ' . mysqli_error($connection));
+                }
+            }
+
+            $indexCheckSql = "
+                SELECT 1
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                AND table_name = 'events'
+                AND index_name = 'idx_events_slug'
+                LIMIT 1
+            ";
+            $indexCheckResult = mysqli_query($connection, $indexCheckSql);
+
+            if (!$indexCheckResult || mysqli_num_rows($indexCheckResult) === 0) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_slug (slug)")) {
+                    throw new RuntimeException('Failed adding idx_events_slug: ' . mysqli_error($connection));
+                }
+            }
+        },
     ];
 }
 

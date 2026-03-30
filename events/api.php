@@ -76,6 +76,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'start' => (string) $row['start_datetime'],
         'end' => !empty($row['end_datetime']) ? (string) $row['end_datetime'] : null,
         'allDay' => (bool) $row['all_day'],
+        'url' => eventforge_public_path('event.php') . '?id=' . (int) $row['id'] . (!empty($row['slug']) ? '&slug=' . urlencode((string) $row['slug']) : ''),
         'extendedProps' => [
             'location' => $row['location'] ?? '',
             'summary' => $row['summary'] ?? '',
