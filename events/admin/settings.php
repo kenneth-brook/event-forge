@@ -1,15 +1,20 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../includes/installer.php';
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
+error_reporting(E_ALL);
+
+require_once __DIR__ . '/../includes/installer.php';
 
 if (!eventforge_is_installed()) {
     header('Location: ' . eventforge_admin_path('setup.php'));
     exit;
 }
 
-require __DIR__ . '/../includes/db.php';
-require __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/system.php';
 
 require_login();
 
@@ -478,9 +483,35 @@ if (!$categoryResult) {
 
     <div class="settings-section">
       <h2>General Controls</h2>
-      <p class="note">
-        Event categories, display defaults, and future module-level controls will be managed here.
-      </p>
+
+      <?php if (is_admin()): ?>
+        <?php $publicCalendarUrl = eventforge_get_system_value($connection, 'public_calendar_url') ?? ''; ?>
+
+        <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-system-setting.php')) ?>">
+          <input type="hidden" name="setting_key" value="public_calendar_url">
+
+          <label for="public_calendar_url">Public Calendar Page URL</label>
+          <input
+            id="public_calendar_url"
+            name="setting_value"
+            type="url"
+            value="<?= htmlspecialchars($publicCalendarUrl) ?>"
+            placeholder="https://demo.365dtm.com/index.html"
+          >
+
+          <p class="note">
+            This is the public page that contains the calendar. Shared event links will open this page and automatically display the matching event modal.
+          </p>
+
+          <div class="form-actions">
+            <button type="submit">Save Public Calendar URL</button>
+          </div>
+        </form>
+      <?php else: ?>
+        <p class="note">
+          Additional administrative configuration options are available to your administrator.
+        </p>
+      <?php endif; ?>
     </div>
   </div>
 </body>

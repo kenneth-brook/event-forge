@@ -72,3 +72,21 @@ function eventforge_unique_event_slug(mysqli $connection, string $title, int $ex
         $counter++;
     }
 }
+
+function eventforge_build_public_event_url(mysqli $connection, int $eventId, ?string $slug = null): string
+{
+    $calendarUrl = eventforge_get_system_value($connection, 'public_calendar_url');
+
+    if ($calendarUrl === null || trim($calendarUrl) === '') {
+        return '';
+    }
+
+    $separator = str_contains($calendarUrl, '?') ? '&' : '?';
+    $url = rtrim($calendarUrl, '/') . $separator . 'event_id=' . $eventId;
+
+    if ($slug !== null && $slug !== '') {
+        $url .= '&slug=' . urlencode($slug);
+    }
+
+    return $url;
+}

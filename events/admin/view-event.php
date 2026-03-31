@@ -1,15 +1,17 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../includes/installer.php';
+require_once __DIR__ . '/../includes/installer.php';
+require_once __DIR__ . '/../includes/system.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 if (!eventforge_is_installed()) {
     header('Location: ' . eventforge_admin_path('setup.php'));
     exit;
 }
 
-require __DIR__ . '/../includes/db.php';
-require __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 require_login();
 
@@ -37,7 +39,15 @@ if (!$result || !($event = mysqli_fetch_assoc($result))) {
     exit('Event not found.');
 }
 
-$publicUrl = eventforge_absolute_url('event-forge/index.html') . '?event_id=' . (int) $event['id'];
+$publicUrl = eventforge_build_public_event_url(
+    $connection,
+    (int) $event['id'],
+    !empty($event['slug']) ? (string) $event['slug'] : null
+);
+
+$publicUrlMessage = $publicUrl !== ''
+    ? $publicUrl
+    : 'This feature requires further setup, please contact your administrator for assistance.';
 
 $isCanceled = !empty($event['is_canceled']);
 $isRecurringParent = !empty($event['is_recurring_parent']);
@@ -179,11 +189,14 @@ $isIndependentChild = !empty($event['is_independent_child']);
 
     <div class="block">
       <h2>Public URL</h2>
-      <div class="url-box" id="event-public-url"><?= htmlspecialchars($publicUrl) ?></div>
-      <p style="margin-top:.75rem;">
-        <button type="button" class="button" onclick="copyEventUrl()">Copy URL</button>
-        <a class="button" href="<?= htmlspecialchars($publicUrl) ?>" target="_blank" rel="noopener">Open Public Link</a>
-      </p>
+      <div class="url-box" id="event-public-url"><?= htmlspecialchars($publicUrlMessage) ?></div>
+
+      <?php if ($publicUrl !== ''): ?>
+        <p style="margin-top:.75rem;">
+          <button type="button" class="button" onclick="copyEventUrl()">Copy URL</button>
+          <a class="button" href="<?= htmlspecialchars($publicUrl) ?>" target="_blank" rel="noopener">Open Public Link</a>
+        </p>
+      <?php endif; ?>
     </div>
 
     <?php if (!empty($event['summary'])): ?>
