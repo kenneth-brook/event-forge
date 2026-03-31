@@ -37,11 +37,7 @@ if (!$result || !($event = mysqli_fetch_assoc($result))) {
     exit('Event not found.');
 }
 
-$publicUrl = eventforge_absolute_url(ltrim(eventforge_public_path('event.php'), '/')) . '?id=' . (int) $event['id'];
-
-if (!empty($event['slug'])) {
-    $publicUrl .= '&slug=' . urlencode((string) $event['slug']);
-}
+$publicUrl = eventforge_absolute_url('event-forge/index.html') . '?event_id=' . (int) $event['id'];
 
 $isCanceled = !empty($event['is_canceled']);
 $isRecurringParent = !empty($event['is_recurring_parent']);
