@@ -262,7 +262,15 @@ document.addEventListener('DOMContentLoaded', () => {
         calendar.gotoDate(event.start);
       }
 
-      openEventModal(event);
+      calendarEl.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+
+      setTimeout(() => {
+        openEventModal(event);
+      }, 350);
+
       linkedEventOpened = true;
     }
   });

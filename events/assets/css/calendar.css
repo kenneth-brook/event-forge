@@ -220,3 +220,9 @@
 .fc-list-event-title {
   font-weight: 600;
 }
+
+.fc .fc-daygrid-event-harness {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+}
