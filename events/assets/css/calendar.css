@@ -226,3 +226,24 @@
     display: flex;
     overflow: hidden;
 }
+
+.calendar-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.calendar-category-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.calendar-powered-by {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+}

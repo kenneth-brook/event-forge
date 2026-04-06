@@ -1,10 +1,6 @@
 <?php
 declare(strict_types=1);
 
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
-
 header('Content-Type: application/json; charset=utf-8');
 
 require __DIR__ . '/includes/installer.php';
@@ -17,15 +13,19 @@ if (!eventforge_is_installed()) {
     exit;
 }
 
-require __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/system.php';
 
 $hidePastEvents = true;
 $keepCurrentMonth = true;
+
+$appVersion = eventforge_get_system_value($connection, 'app_version') ?? '';
 
 $sql = "
     SELECT
         e.id,
         e.title,
+        e.slug,
         e.start_datetime,
         e.end_datetime,
         e.all_day,
@@ -93,5 +93,11 @@ while ($row = mysqli_fetch_assoc($result)) {
     ];
 }
 
-echo json_encode($events, JSON_UNESCAPED_SLASHES);
+echo json_encode([
+    'events' => $events,
+    'meta' => [
+        'app_version' => $appVersion,
+    ],
+], JSON_UNESCAPED_SLASHES);
+
 exit;

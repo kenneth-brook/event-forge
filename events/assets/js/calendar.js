@@ -1,6 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
   const calendarEl = document.getElementById('calendar');
 
+  if (!calendarEl || !window.FullCalendar) {
+    console.error('Calendar container or FullCalendar missing.');
+    return;
+  }
+
   const modal = ensureEventModal();
   const modalTitle = document.getElementById('modal-title');
   const modalDate = document.getElementById('modal-datetime');
@@ -19,67 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const closeBtn = document.querySelector('.event-modal-close');
   const backdrop = document.querySelector('.event-modal-backdrop');
-
-  if (!calendarEl || !window.FullCalendar) {
-    console.error('Calendar container or FullCalendar missing.');
-    return;
-  }
-
-  function ensureCategoryKey(calendarEl) {
-    let keyEl = document.getElementById('calendar-category-key');
-
-    if (keyEl) return keyEl;
-
-    keyEl = document.createElement('div');
-    keyEl.id = 'calendar-category-key';
-    keyEl.className = 'calendar-category-key';
-
-    calendarEl.insertAdjacentElement('afterend', keyEl);
-
-    return keyEl;
-  }
-
-  function ensureEventModal() {
-    let modal = document.getElementById('event-modal');
-
-    if (modal) return modal;
-
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `
-      <div id="event-modal" class="event-modal" hidden>
-        <div class="event-modal-backdrop"></div>
-
-        <div class="event-modal-panel">
-          <button class="event-modal-close" type="button" aria-label="Close event details">×</button>
-
-          <h3 id="modal-title"></h3>
-
-          <p id="modal-datetime"></p>
-
-          <p id="modal-location-wrap" hidden>
-            <strong>Location:</strong>
-            <span id="modal-location"></span>
-          </p>
-
-          <div id="modal-image-wrap" hidden>
-            <img id="modal-image" alt="" style="max-width:100%;">
-          </div>
-
-          <div id="modal-description-wrap" hidden>
-            <div id="modal-description"></div>
-          </div>
-
-          <p id="modal-pdf-wrap" hidden>
-            <a id="modal-pdf" href="#" target="_blank" rel="noopener">View Event Flyer</a>
-          </p>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(wrapper.firstElementChild);
-
-    return document.getElementById('event-modal');
-  }
 
   const closeModal = () => {
     if (modal) modal.hidden = true;
@@ -209,7 +153,21 @@ document.addEventListener('DOMContentLoaded', () => {
       timeGridDay: 'Day',
       listMonth: 'List'
     },
-    events: '/event-forge/events/api.php',
+    events(fetchInfo, successCallback, failureCallback) {
+      fetch('/event-forge/events/api.php')
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.meta && data.meta.app_version) {
+            injectPoweredBy(data.meta.app_version);
+          }
+
+          successCallback(data.events || []);
+        })
+        .catch((err) => {
+          console.error(err);
+          failureCallback(err);
+        });
+    },
     eventTimeFormat: {
       hour: 'numeric',
       minute: '2-digit',
@@ -255,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (linkedEventOpened || !linkedEventId) return;
 
       const event = calendar.getEventById(String(linkedEventId));
-
       if (!event) return;
 
       if (event.start) {
@@ -277,7 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   calendar.render();
 
-  const keyEl = ensureCategoryKey(calendarEl);
+  ensureCalendarFooter(calendarEl);
+
+  const keyEl = document.getElementById('calendar-category-key');
 
   if (keyEl) {
     fetch('/event-forge/events/categories.php')
@@ -307,16 +266,76 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function ensureCategoryKey(calendarEl) {
-    let keyEl = document.getElementById('calendar-category-key');
+function ensureCalendarFooter(calendarEl) {
+  let footer = document.getElementById('calendar-footer');
 
-    if (keyEl) return keyEl;
+  if (footer) return footer;
 
-    keyEl = document.createElement('div');
-    keyEl.id = 'calendar-category-key';
-    keyEl.className = 'calendar-category-key';
+  footer = document.createElement('div');
+  footer.id = 'calendar-footer';
+  footer.className = 'calendar-footer';
 
-    calendarEl.insertAdjacentElement('afterend', keyEl);
+  const key = document.createElement('div');
+  key.id = 'calendar-category-key';
+  key.className = 'calendar-category-key';
 
-    return keyEl;
-  }
+  const powered = document.createElement('div');
+  powered.id = 'calendar-powered-by';
+  powered.className = 'calendar-powered-by';
+
+  footer.appendChild(key);
+  footer.appendChild(powered);
+
+  calendarEl.insertAdjacentElement('afterend', footer);
+
+  return footer;
+}
+
+function injectPoweredBy(version) {
+  const el = document.getElementById('calendar-powered-by');
+  if (!el) return;
+
+  el.textContent = `Powered by Event Forge v${version}`;
+}
+
+function ensureEventModal() {
+  let modal = document.getElementById('event-modal');
+
+  if (modal) return modal;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div id="event-modal" class="event-modal" hidden>
+      <div class="event-modal-backdrop"></div>
+
+      <div class="event-modal-panel">
+        <button class="event-modal-close" type="button" aria-label="Close event details">×</button>
+
+        <h3 id="modal-title"></h3>
+
+        <p id="modal-datetime"></p>
+
+        <p id="modal-location-wrap" hidden>
+          <strong>Location:</strong>
+          <span id="modal-location"></span>
+        </p>
+
+        <div id="modal-image-wrap" hidden>
+          <img id="modal-image" alt="" style="max-width:100%;">
+        </div>
+
+        <div id="modal-description-wrap" hidden>
+          <div id="modal-description"></div>
+        </div>
+
+        <p id="modal-pdf-wrap" hidden>
+          <a id="modal-pdf" href="#" target="_blank" rel="noopener">View Event Flyer</a>
+        </p>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(wrapper.firstElementChild);
+
+  return document.getElementById('event-modal');
+}

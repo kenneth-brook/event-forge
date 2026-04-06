@@ -282,7 +282,7 @@ if (!$categoryResult) {
 
                   <?php elseif (is_admin()): ?>
                     <?php if ($targetRole === 'staff'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-user-role.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this staff account to staff manager?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this staff account to staff manager?');">
                         Make Staff Manager
                       </a>
                       |

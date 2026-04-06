@@ -8,8 +8,8 @@ if (!eventforge_is_installed()) {
     exit;
 }
 
-require __DIR__ . '/../includes/db.php';
-require __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/auth.php';
 
 require_login();
 require_admin();
@@ -42,12 +42,16 @@ if ($id > 0) {
             if ($newRole !== null) {
                 $newRoleEsc = mysqli_real_escape_string($connection, $newRole);
 
-                mysqli_query($connection, "
+                $updateSql = "
                     UPDATE event_admin_users
                     SET role = '{$newRoleEsc}'
                     WHERE id = {$id}
                     LIMIT 1
-                ");
+                ";
+
+                if (!mysqli_query($connection, $updateSql)) {
+                    exit('Role update failed: ' . mysqli_error($connection));
+                }
             }
         }
     }
