@@ -1,17 +1,15 @@
-# README.md
-
 # Event Forge
 
 ![License](https://img.shields.io/badge/license-Proprietary-blue)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777BB4?logo=php)
 ![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MariaDB-orange)
-![Version](https://img.shields.io/badge/version-0.1.0-green)
+![Version](https://img.shields.io/badge/version-0.4.1-green)
 ![Status](https://img.shields.io/badge/status-active-success)
 ![Architecture](https://img.shields.io/badge/architecture-portable-informational)
 
 **Event Forge** is a portable event management and display utility built for static and legacy hosting environments.
 
-It provides a self-contained event system with an administrative interface, event API, recurring event support, cancellations, child-instance independence, and embeddable calendar views without requiring Node.js, a framework build chain, or a modern CMS stack.
+It provides a self-contained event system with an administrative interface, event API, recurring event support, cancellation handling, category-based styling, modal event display, and deployable calendar views without requiring Node.js, a framework build chain, or a modern CMS stack.
 
 ---
 
@@ -21,10 +19,29 @@ Event Forge was built to solve a practical deployment problem:
 
 - static or lightly dynamic sites still need a real event system
 - older hosting environments often cannot support modern application stacks
-- clients still expect calendars, recurring events, attachments, and admin controls
+- clients still expect calendars, recurring events, attachments, categories, and admin controls
 - agencies need something repeatable, fast to deploy, and easy to maintain
+- installs need to be updatable without rebuilding the whole deployment by hand
 
 Event Forge is designed to fill that gap.
+
+---
+
+## Current Version
+
+**Current release:** `0.4.1`
+
+Event Forge now includes:
+
+- automated installer flow
+- database schema version tracking
+- migration-based upgrades for dropped-in file updates
+- recurring event management
+- cancellation handling
+- independent child workflow
+- category system with colors
+- modal deep-link support
+- admin-side event URL tools
 
 ---
 
@@ -38,6 +55,9 @@ Event Forge is designed to fill that gap.
 - Optional image uploads
 - Optional PDF attachments
 - Event summaries and descriptions
+- Event category assignment
+- Event slug generation
+- Admin event detail view
 
 ### Recurring Events
 
@@ -46,6 +66,8 @@ Event Forge is designed to fill that gap.
 - Generated child event instances
 - Independent child support for one-off overrides
 - Parent/child grouping in the admin interface
+- Child inheritance of parent content and category
+- Series-aware cancellation handling
 
 ### Event Display
 
@@ -54,15 +76,42 @@ Event Forge is designed to fill that gap.
 - Day view
 - List view
 - Event detail modal
+- Category color styling
+- Category key / legend
+- Deep-link event modal support from shared URLs
+- Powered-by Event Forge footer with version display
 - Canceled event display styling
 
-### Admin Controls
+### Category System
+
+- Create, edit, and delete categories
+- Background color selection
+- Font color selection
+- Active / inactive categories
+- Category-based display styling in the calendar
+- Category legend output below calendar
+
+### Administrative Controls
 
 - Login-protected admin area
-- User roles: `admin` and `staff`
-- User creation and management
-- Admin-only settings area
-- Series controls for recurring events
+- User roles:
+  - `staff`
+  - `staff_manager`
+  - `admin`
+- Staff manager account controls for client-side delegated management
+- Admin-only system configuration
+- User suspension support
+- Role-aware settings display
+- Public calendar URL setting for shareable event links
+
+### Deployment / Upgrade Model
+
+- Install-aware bootstrap flow
+- Database configuration setup
+- Schema version tracking through `eventforge_system`
+- App version tracking through `eventforge_system`
+- Migration runner for dropped-in file updates
+- Legacy install adoption path for older deployments
 
 ### API
 
@@ -70,13 +119,15 @@ Event data is exposed through:
 
 `/events/api.php`
 
-This allows the system to power:
+This powers:
 
 - calendars
 - list views
 - scrollers
 - event widgets
 - future modules
+
+The API also returns install metadata needed by the display layer, including app version.
 
 ---
 
@@ -103,6 +154,7 @@ event-forge/
 ├── .gitignore
 ├── events/
 │   ├── api.php
+│   ├── categories.php
 │   ├── event.php
 │   ├── admin/
 │   ├── assets/
@@ -118,125 +170,3 @@ event-forge/
 └── examples/
     ├── consumer-page-example.php
     └── embed-snippets.md
-```
-
----
-
-## Installation
-
-### 1. Upload the `events` directory
-
-Deploy the `events` folder to your site root.
-
-Example target path:
-
-`/events`
-
-### 2. Create the database
-
-Create a MySQL or MariaDB database for the installation.
-
-### 3. Import the schema
-
-Import:
-
-`/install/install.sql`
-
-### 4. Configure database access
-
-Edit:
-
-`/events/includes/db.php`
-
-and set the correct database connection values.
-
-### 5. Create the first admin account
-
-Insert an admin user into `event_admin_users` using a password hash generated with PHP:
-
-```php
-password_hash('yourpassword', PASSWORD_DEFAULT);
-```
-
-### 6. Log in
-
-Access the admin area:
-
-`/events/admin/login.php`
-
----
-
-## Embedding the Calendar
-
-Add a calendar container to the page consuming the module:
-
-```html
-<div id="calendar"></div>
-```
-
-Load the assets:
-
-```html
-<link rel="stylesheet" href="/events/assets/css/calendar.css">
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js"></script>
-<script type="module" src="/events/assets/js/calendar.js"></script>
-```
-
-The calendar will load event data from:
-
-`/events/api.php`
-
----
-
-## Upload Locations
-
-Uploaded assets are stored in:
-
-- `/events/uploads/images`
-- `/events/uploads/pdfs`
-
-These directories should be writable by the web server.
-
----
-
-## Roles
-
-Event Forge currently supports two user roles:
-
-- `admin`
-- `staff`
-
-### Admin
-Can access settings and manage users.
-
-### Staff
-Can use the event system without admin-only controls.
-
----
-
-## Notes
-
-- Recurring parent events generate child instances into the main `events` table.
-- Independent children remain associated with the series, but are no longer overwritten by parent regeneration.
-- Canceled events remain visible for communication purposes instead of being deleted.
-
----
-
-## Current Status
-
-Event Forge is currently in active internal development and deployment use.
-
-It is already suitable for real-world client deployment in environments that need:
-
-- rapid event calendar rollout
-- recurring event support
-- minimal hosting requirements
-- a maintainable admin layer
-
----
-
-## License
-
-This project is currently maintained for internal and client use.
-
-License terms will be finalized as the project evolves.

@@ -1,8 +1,12 @@
-# ROADMAP.md
 
+---
+
+## Updated `ROADMAP.md`
+
+```markdown
 # Event Forge Roadmap
 
-This document tracks the planned evolution of Event Forge from a deployable event calendar utility into a broader modular utility platform.
+This document tracks the evolution of Event Forge from a deployable event calendar utility into a broader modular utility platform.
 
 ---
 
@@ -10,13 +14,13 @@ This document tracks the planned evolution of Event Forge from a deployable even
 
 Event Forge is being built as a portable utility platform for static and legacy-hosted websites.
 
-The current focus is the **events system**, but the long-term direction includes multiple related modules that share configuration, display logic, and deployment patterns.
+The current focus is the **events system**, but the longer-term direction includes multiple related modules that share configuration, display logic, deployment patterns, and install-level controls.
 
 ---
 
 ## Current State
 
-### v0.1.x - Working Internal Deployment Baseline
+### v0.4.x - Deployable Upgrade-Aware Event Platform Baseline
 
 Implemented:
 
@@ -28,57 +32,95 @@ Implemented:
 - FullCalendar integration
 - Month / week / day / list views
 - Event modal display
-- Recurring weekly events
-- Recurring monthly nth-weekday events
+- Modal deep-link support from shared event URLs
+- Weekly recurrence
+- Monthly nth-weekday recurrence
 - Generated child event instances
 - Independent child workflow
 - Parent/child admin grouping
-- User roles (`admin`, `staff`)
-- Admin settings entry point
+- User roles:
+  - `staff`
+  - `staff_manager`
+  - `admin`
+- User suspension support
+- Role-aware settings display
+- Category system
+- Category colors and font colors
+- Category legend output
+- Event slug generation
+- Admin event detail view
+- Public calendar URL setting
+- Installer-driven deployment flow
+- `eventforge_system` version tracking
+- Migration runner for dropped-in file updates
+- Legacy install bridge-upgrade path
+- Powered-by Event Forge version display in the consumer layer
 
-This version is designed to be deployable for current client use.
+This version is suitable for active client deployment.
+
+---
+
+## Versioning Model
+
+### App Version
+Tracked in:
+
+`eventforge_system.app_version`
+
+Used to identify the deployed code release.
+
+### Schema Version
+Tracked in:
+
+`eventforge_system.schema_version`
+
+Used to determine whether install-level database migrations must be executed.
+
+This allows:
+
+- safer dropped-in file updates
+- install-aware upgrade paths
+- legacy deployment adoption
+- schema evolution without one-off guessing
 
 ---
 
 ## Near-Term Goals
 
-### v0.2 - Deployment Quality Improvements
+### v0.5 - Event Linking and Display Refinement
 
 Planned:
 
-- Install SQL cleanup and standardization
-- Seed SQL examples
-- Cleaner deployment checklist
-- Config sample files
-- Better admin polish
-- More descriptive helper text and tooltips
-- Event slug generation groundwork
-- Improved canceled event presentation
-- Stronger validation around recurring event controls
+- cleaner event share-link handling
+- stronger public-link generation around calendar consumer URLs
+- improved modal behavior across more client layouts
+- copy-link UX refinement
+- event detail presentation polish
+- better direct-link behavior on public pages with content above the fold
 
-### v0.3 - Rapid Deployment Foundations
+### v0.6 - Administrative Quality Expansion
 
 Planned:
 
-- Repeatable deployment structure
-- Installer planning and bootstrap groundwork
-- Environment-aware configuration model
-- More portable packaging
-- Shared deployment conventions for multiple clients
-- Admin-side feature toggles
+- profile-level controls for staff
+- password reset workflow
+- safer user lifecycle handling
+- edit-user workflow
+- cleaner role-action UX
+- additional admin-only install configuration values
+
+### v0.7 - Event Module Maturity Push
+
+Planned:
+
+- recurrence helper improvements
+- recurrence validation hardening
+- return-independent-child-to-series workflow
+- skip-one-occurrence workflow
+- improved canceled-series behavior
+- better parent/child visibility and inspection tools
 
 ---
-
-### Schema Versioning
-
-Event Forge tracks install-level metadata in `eventforge_system`.
-
-This allows:
-
-- schema version detection
-- app version tracking
-- future migration execution
-- safer dropped-in file updates
 
 ## Events Module Expansion
 
@@ -96,13 +138,19 @@ Planned:
 
 ### Event Detail Layer
 
+Implemented / in progress:
+
+- Event slug generation
+- Shareable event URLs
+- Modal deep-link landing flow
+- Admin event detail page
+
 Planned:
 
-- Direct-access event pages
-- Shareable event URLs
-- Social campaign landing pages
-- Event detail templates
-- QR-friendly event routing
+- QR generation for event URLs
+- printable event detail / QR handoff
+- stronger social-campaign link workflows
+- optional public event detail page variants
 
 ---
 
@@ -139,24 +187,69 @@ Planned use cases:
 
 ### Settings Area Expansion
 
+Implemented in part:
+
+- role-aware settings surface
+- admin-only public calendar page URL configuration
+
 Planned:
 
-- Feature enable/disable controls
-- Display defaults
-- Hide past events toggle
-- Calendar default view
-- Branding values
-- Attachment controls
-- Module enable/disable flags
+- feature enable / disable controls
+- display defaults
+- hide past events modes
+- calendar default view
+- branding values
+- attachment controls
+- module enable / disable flags
+- environment-aware public display configuration
 
 ### User Management Expansion
 
+Implemented in part:
+
+- role refinement
+- suspension support
+- admin-only install control surface
+
 Planned:
 
-- Password reset controls
-- Role refinement
-- Audit-friendly account actions
-- Safer user lifecycle management
+- password reset controls
+- edit-user workflow
+- audit-friendly account actions
+- safer user lifecycle management
+- staff profile editing
+
+---
+
+## Deployment Goals
+
+### Legacy Adoption
+
+Implemented in practice:
+
+- bridge-upgrade path for early installs that predate schema versioning
+- backfill path for missing structures and indexes
+- install normalization into migration-aware state
+
+Planned:
+
+- more formalized legacy adoption checklist
+- install audit tooling
+- upgrade verification routines
+
+### Portable Consumer Embeds
+
+Implemented in part:
+
+- modal injection
+- category legend injection
+- powered-by footer injection
+
+Planned:
+
+- more automatic consumer-page bootstrapping
+- fewer assumptions about page-specific markup
+- stronger cross-install portability guarantees
 
 ---
 
@@ -166,10 +259,11 @@ Planned:
 
 Target goals:
 
-- Stable deployment pattern
-- Module-aware platform structure
-- Shared settings architecture
-- Cleaner internal extension model
+- stable deployment pattern
+- module-aware platform structure
+- shared settings architecture
+- cleaner internal extension model
+- repeatable client rollout across multiple modules
 
 ### v2.0 - Native Event Forge Calendar Engine
 
@@ -191,17 +285,17 @@ Event Forge should continue to prioritize:
 - maintainability
 - low infrastructure requirements
 - client-friendly controls
+- upgrade safety
 - modular growth without unnecessary complexity
 
 ---
 
 ## Notes
 
-This roadmap is intentionally practical.
-
-Features should be added based on:
+Features should continue to be added based on:
 
 1. repeat client need
 2. deployment efficiency
 3. maintainability across multiple installs
 4. alignment with the broader Event Forge platform direction
+5. whether the feature improves portability, upgrade safety, or real client usefulness
