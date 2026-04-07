@@ -95,7 +95,7 @@ function eventforge_get_schema_seed_statements(): array
     return [
         "
         INSERT INTO eventforge_system (system_key, system_value)
-        VALUES ('schema_version', '" . EVENTFORGE_SCHEMA_VERSION . "')
+        VALUES ('schema_version', '1')
         ON DUPLICATE KEY UPDATE system_value = VALUES(system_value)
         ",
 
