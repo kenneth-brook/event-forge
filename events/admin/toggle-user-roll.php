@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../includes/installer.php';
+require_once __DIR__ . '/../includes/installer.php';
 
 if (!eventforge_is_installed()) {
     header('Location: ' . eventforge_admin_path('setup.php'));

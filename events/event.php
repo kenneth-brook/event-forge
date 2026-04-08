@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/includes/installer.php';
+require_once __DIR__ . '/includes/installer.php';
 
 if (!eventforge_is_installed()) {
     http_response_code(500);
     exit('Event Forge is not installed.');
 }
 
-require __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/db.php';
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $slug = trim($_GET['slug'] ?? '');
