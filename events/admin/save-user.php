@@ -10,6 +10,7 @@ if (!eventforge_is_installed()) {
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/passwords.php';
 
 require_login();
 
@@ -18,12 +19,18 @@ if (!can_manage_users()) {
     exit('Access denied.');
 }
 
-$username = trim($_POST['username'] ?? '');
-$password = $_POST['password'] ?? '';
-$role = trim($_POST['role'] ?? 'staff');
+$username = trim((string) ($_POST['username'] ?? ''));
+$password = (string) ($_POST['password'] ?? '');
+$role = trim((string) ($_POST['role'] ?? 'staff'));
 
 if ($username === '' || $password === '') {
     exit('Username and password are required.');
+}
+
+$passwordErrors = eventforge_validate_new_password($password);
+
+if (!empty($passwordErrors)) {
+    exit($passwordErrors[0]);
 }
 
 $allowedRoles = [];
@@ -56,7 +63,11 @@ $checkSql = "
 
 $checkResult = mysqli_query($connection, $checkSql);
 
-if ($checkResult && mysqli_num_rows($checkResult) > 0) {
+if (!$checkResult) {
+    exit('User lookup failed: ' . mysqli_error($connection));
+}
+
+if (mysqli_num_rows($checkResult) > 0) {
     exit('That username already exists.');
 }
 

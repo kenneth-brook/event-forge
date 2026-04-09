@@ -43,7 +43,7 @@ if ($canManageUsers) {
 }
 
 $categoryResult = mysqli_query($connection, "
-    SELECT id, name, slug, color, is_active, created_at
+    SELECT id, name, slug, color, font_color, is_active, created_at
     FROM event_categories
     ORDER BY name ASC
 ");
@@ -166,6 +166,8 @@ if (!$categoryResult) {
 
     input[type="text"],
     input[type="password"],
+    input[type="select"],
+    input[type="url"],
     select {
       width: 100%;
       padding: .7rem;
@@ -211,6 +213,13 @@ if (!$categoryResult) {
       font-size: .8rem;
       font-weight: 700;
     }
+
+    .account-actions {
+      margin-top: 1rem;
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
   </style>
 </head>
 <body>
@@ -224,8 +233,20 @@ if (!$categoryResult) {
           <span class="account-chip__role"><?= htmlspecialchars(strtoupper(str_replace('_', ' ', current_admin_role()))) ?></span>
         </div>
 
+        <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('change-password.php')) ?>">Change My Password</a>
         <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('index.php')) ?>">Back to Events</a>
         <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('logout.php')) ?>">Log Out</a>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>My Account</h2>
+      <p class="note">
+        Manage your own account credentials here.
+      </p>
+
+      <div class="account-actions">
+        <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('change-password.php')) ?>">Change My Password</a>
       </div>
     </div>
 
@@ -234,7 +255,7 @@ if (!$categoryResult) {
         <h2>User Management</h2>
         <p class="note">
           <?php if (is_admin()): ?>
-            Admins can create, manage, suspend, unsuspend, and delete staff, staff manager, and admin accounts.
+            Admins can create, manage, suspend, unsuspend, delete, and change passwords for staff, staff manager, and admin accounts.
           <?php elseif (is_staff_manager()): ?>
             Staff managers can create, suspend, unsuspend, and delete staff accounts.
           <?php endif; ?>
@@ -253,6 +274,7 @@ if (!$categoryResult) {
           <tbody>
             <?php while ($user = mysqli_fetch_assoc($userResult)): ?>
               <?php
+              $targetId = (int) $user['id'];
               $targetUsername = (string) $user['username'];
               $targetRole = (string) $user['role'];
               $isSuspended = !empty($user['is_suspended']);
@@ -278,75 +300,82 @@ if (!$categoryResult) {
                 <td><?= htmlspecialchars((string) $user['created_at']) ?></td>
                 <td>
                   <?php if ($isCurrentUser): ?>
+                    <a href="<?= htmlspecialchars(eventforge_admin_path('change-password.php')) ?>">Change Password</a>
+                    |
                     <em>Current account</em>
 
                   <?php elseif (is_admin()): ?>
+                    <a href="<?= htmlspecialchars(eventforge_admin_path('change-user-password.php')) ?>?id=<?= $targetId ?>">
+                      Change Password
+                    </a>
+                    |
+
                     <?php if ($targetRole === 'staff'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this staff account to staff manager?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Promote this staff account to staff manager?');">
                         Make Staff Manager
                       </a>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this account to admin?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Promote this account to admin?');">
                         Make Admin
                       </a>
                       |
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
                           Unsuspend
                         </a>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
                           Suspend
                         </a>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
                         Delete
                       </a>
 
                     <?php elseif ($targetRole === 'staff_manager'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this staff manager back to staff?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Change this staff manager back to staff?');">
                         Make Staff
                       </a>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Promote this account to admin?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Promote this account to admin?');">
                         Make Admin
                       </a>
                       |
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
                           Unsuspend
                         </a>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
                           Suspend
                         </a>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
                         Delete
                       </a>
 
                     <?php elseif ($targetRole === 'admin'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this admin to staff manager?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Change this admin to staff manager?');">
                         Make Staff Manager
                       </a>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Change this admin to staff?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Change this admin to staff?');">
                         Make Staff
                       </a>
                       |
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
                           Unsuspend
                         </a>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
                           Suspend
                         </a>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
                         Delete
                       </a>
 
@@ -357,16 +386,16 @@ if (!$categoryResult) {
                   <?php elseif (is_staff_manager()): ?>
                     <?php if ($targetRole === 'staff'): ?>
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Unsuspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
                           Unsuspend
                         </a>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Suspend this account?');">
+                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
                           Suspend
                         </a>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= (int) $user['id'] ?>" onclick="return confirm('Delete this user?');">
+                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
                         Delete
                       </a>
                     <?php else: ?>
@@ -417,8 +446,12 @@ if (!$categoryResult) {
       <div class="settings-section">
         <h2>Account</h2>
         <p class="note">
-          Account-level controls for your profile will be available here in a future update.
+          Use the password option above to manage your account credentials.
         </p>
+
+        <div class="account-actions">
+          <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('change-password.php')) ?>">Change My Password</a>
+        </div>
       </div>
     <?php endif; ?>
 
