@@ -37,6 +37,24 @@ function eventforge_set_system_value(mysqli $connection, string $key, string $va
     return (bool) mysqli_query($connection, $sql);
 }
 
+function eventforge_get_system_flag(mysqli $connection, string $key, bool $default = false): bool
+{
+    $value = eventforge_get_system_value($connection, $key);
+
+    if ($value === null) {
+        return $default;
+    }
+
+    $normalized = strtolower(trim($value));
+
+    return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+}
+
+function eventforge_set_system_flag(mysqli $connection, string $key, bool $value): bool
+{
+    return eventforge_set_system_value($connection, $key, $value ? '1' : '0');
+}
+
 function eventforge_get_schema_version(mysqli $connection): int
 {
     $value = eventforge_get_system_value($connection, 'schema_version');

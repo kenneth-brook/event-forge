@@ -15,10 +15,21 @@ if (!eventforge_is_installed()) {
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/system.php';
+require_once __DIR__ . '/../includes/theme.php';
 
 require_login();
 
 $canManageUsers = can_manage_users();
+$canManageCalendarTheme = eventforge_can_manage_calendar_theme($connection);
+$staffManagerThemeAllowed = eventforge_get_system_flag(
+    $connection,
+    'permissions_allow_staff_manager_calendar_theme',
+    false
+);
+$calendarTheme = eventforge_get_calendar_theme($connection);
+$themeDefinitions = eventforge_calendar_theme_definitions();
+
+$status = trim((string) ($_GET['status'] ?? ''));
 
 $userResult = null;
 
@@ -51,6 +62,8 @@ $categoryResult = mysqli_query($connection, "
 if (!$categoryResult) {
     exit('Category query failed: ' . mysqli_error($connection));
 }
+
+$publicCalendarUrl = eventforge_get_system_value($connection, 'public_calendar_url') ?? '';
 ?>
 <!doctype html>
 <html lang="en">
@@ -66,7 +79,7 @@ if (!$categoryResult) {
     }
 
     .wrap {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: 0 auto;
       background: #fff;
       padding: 2rem;
@@ -124,12 +137,27 @@ if (!$categoryResult) {
       background: #fff;
       color: #111;
       border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .button--secondary {
+      border-color: #d7dde5;
     }
 
     .settings-section {
       margin-top: 2rem;
       padding-top: 1.5rem;
       border-top: 1px solid #d7dde5;
+    }
+
+    .notice {
+      margin-bottom: 1rem;
+      padding: .85rem 1rem;
+      border-radius: 8px;
+      background: #edf8ef;
+      border: 1px solid #b7ddbe;
+      color: #1f4d28;
+      font-weight: 600;
     }
 
     table {
@@ -166,7 +194,6 @@ if (!$categoryResult) {
 
     input[type="text"],
     input[type="password"],
-    input[type="select"],
     input[type="url"],
     select {
       width: 100%;
@@ -174,8 +201,21 @@ if (!$categoryResult) {
       box-sizing: border-box;
     }
 
+    input[type="color"] {
+      width: 100%;
+      height: 2.9rem;
+      border: 1px solid #d7dde5;
+      border-radius: 8px;
+      background: #fff;
+      padding: .2rem;
+      box-sizing: border-box;
+    }
+
     .form-actions {
       margin-top: 1.5rem;
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
     }
 
     .note {
@@ -220,6 +260,45 @@ if (!$categoryResult) {
       gap: .75rem;
       flex-wrap: wrap;
     }
+
+    .toggle-card {
+      border: 1px solid #d7dde5;
+      border-radius: 10px;
+      padding: 1rem;
+      background: #fafbfc;
+      margin-top: 1rem;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .theme-field {
+      border: 1px solid #d7dde5;
+      border-radius: 10px;
+      padding: 1rem;
+      background: #fafbfc;
+    }
+
+    .theme-field label {
+      margin-top: 0;
+    }
+
+    .theme-field__default {
+      margin-top: .5rem;
+      color: #4b5563;
+      font-size: .85rem;
+    }
   </style>
 </head>
 <body>
@@ -238,6 +317,14 @@ if (!$categoryResult) {
         <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('logout.php')) ?>">Log Out</a>
       </div>
     </div>
+
+    <?php if ($status === 'general-saved'): ?>
+      <div class="notice">General setting saved.</div>
+    <?php elseif ($status === 'permissions-saved'): ?>
+      <div class="notice">Calendar theme permission setting saved.</div>
+    <?php elseif ($status === 'theme-saved'): ?>
+      <div class="notice">Calendar theme saved.</div>
+    <?php endif; ?>
 
     <div class="settings-section">
       <h2>My Account</h2>
@@ -515,11 +602,78 @@ if (!$categoryResult) {
     </div>
 
     <div class="settings-section">
+      <h2>Calendar Theme</h2>
+      <p class="note">
+        These colors are stored as centralized system settings so the calendar UI, event modal, and future branding controls can all read from one source of truth.
+      </p>
+
+      <?php if (is_admin()): ?>
+        <div class="toggle-card">
+          <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-system-setting.php')) ?>">
+            <input type="hidden" name="setting_key" value="permissions_allow_staff_manager_calendar_theme">
+            <input type="hidden" name="setting_value" value="0">
+
+            <div class="toggle-row">
+              <label style="margin:0;">
+                <input
+                  type="checkbox"
+                  name="setting_value"
+                  value="1"
+                  <?= $staffManagerThemeAllowed ? 'checked' : '' ?>
+                >
+                Allow staff managers to manage calendar color settings
+              </label>
+
+              <button type="submit" class="button">Save Permission</button>
+            </div>
+          </form>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($canManageCalendarTheme): ?>
+        <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-calendar-theme.php')) ?>">
+          <div class="theme-grid">
+            <?php foreach ($themeDefinitions as $key => $definition): ?>
+              <?php
+              $currentValue = (string) ($calendarTheme[$key] ?? $definition['default']);
+              $defaultValue = (string) $definition['default'];
+              ?>
+              <div class="theme-field">
+                <label for="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars((string) $definition['label']) ?></label>
+                <input
+                  id="<?= htmlspecialchars($key) ?>"
+                  name="<?= htmlspecialchars($key) ?>"
+                  type="color"
+                  value="<?= htmlspecialchars($currentValue) ?>"
+                  data-default-color="<?= htmlspecialchars($defaultValue) ?>"
+                  required
+                >
+                <div class="note"><?= htmlspecialchars((string) $definition['description']) ?></div>
+                <div class="theme-field__default">Default: <?= htmlspecialchars($defaultValue) ?></div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="button">Save Calendar Theme</button>
+            <button type="button" class="button button--secondary" id="theme-defaults-button">Use Defaults</button>
+          </div>
+        </form>
+      <?php elseif (is_staff_manager()): ?>
+        <p class="note">
+          Your administrator has not enabled calendar theme management for staff managers.
+        </p>
+      <?php else: ?>
+        <p class="note">
+          Calendar theme controls are available to administrators.
+        </p>
+      <?php endif; ?>
+    </div>
+
+    <div class="settings-section">
       <h2>General Controls</h2>
 
       <?php if (is_admin()): ?>
-        <?php $publicCalendarUrl = eventforge_get_system_value($connection, 'public_calendar_url') ?? ''; ?>
-
         <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-system-setting.php')) ?>">
           <input type="hidden" name="setting_key" value="public_calendar_url">
 
@@ -547,5 +701,21 @@ if (!$categoryResult) {
       <?php endif; ?>
     </div>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const defaultsButton = document.getElementById('theme-defaults-button');
+
+      if (!defaultsButton) {
+        return;
+      }
+
+      defaultsButton.addEventListener('click', function () {
+        document.querySelectorAll('input[type="color"][data-default-color]').forEach(function (input) {
+          input.value = input.getAttribute('data-default-color') || '#FFFFFF';
+        });
+      });
+    });
+  </script>
 </body>
 </html>

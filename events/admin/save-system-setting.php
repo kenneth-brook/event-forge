@@ -15,20 +15,45 @@ require_once __DIR__ . '/../includes/system.php';
 require_login();
 require_admin();
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit('Method not allowed.');
+}
+
 $settingKey = trim($_POST['setting_key'] ?? '');
-$settingValue = trim($_POST['setting_value'] ?? '');
+$settingValue = trim((string) ($_POST['setting_value'] ?? ''));
 
 $allowedKeys = [
     'public_calendar_url',
+    'permissions_allow_staff_manager_calendar_theme',
 ];
 
 if (!in_array($settingKey, $allowedKeys, true)) {
     exit('Invalid setting key.');
 }
 
-if (!eventforge_set_system_value($connection, $settingKey, $settingValue)) {
-    exit('Failed to save setting.');
+if ($settingKey === 'public_calendar_url') {
+    if ($settingValue !== '' && filter_var($settingValue, FILTER_VALIDATE_URL) === false) {
+        exit('Invalid URL.');
+    }
+
+    if (!eventforge_set_system_value($connection, $settingKey, $settingValue)) {
+        exit('Failed to save setting.');
+    }
+
+    header('Location: ' . eventforge_admin_path('settings.php') . '?status=general-saved');
+    exit;
 }
 
-header('Location: ' . eventforge_admin_path('settings.php'));
-exit;
+if ($settingKey === 'permissions_allow_staff_manager_calendar_theme') {
+    $flagValue = in_array($settingValue, ['1', 'true', 'yes', 'on'], true);
+
+    if (!eventforge_set_system_flag($connection, $settingKey, $flagValue)) {
+        exit('Failed to save setting.');
+    }
+
+    header('Location: ' . eventforge_admin_path('settings.php') . '?status=permissions-saved');
+    exit;
+}
+
+exit('Unhandled setting key.');

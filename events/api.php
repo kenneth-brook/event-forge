@@ -15,11 +15,13 @@ if (!eventforge_is_installed()) {
 
 require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/system.php';
+require_once __DIR__ . '/includes/theme.php';
 
 $hidePastEvents = true;
 $keepCurrentMonth = true;
 
 $appVersion = eventforge_get_system_value($connection, 'app_version') ?? '';
+$calendarTheme = eventforge_get_calendar_theme($connection);
 
 $sql = "
     SELECT
@@ -97,6 +99,8 @@ echo json_encode([
     'events' => $events,
     'meta' => [
         'app_version' => $appVersion,
+        'calendar_theme' => $calendarTheme,
+        'calendar_theme_css_variables' => eventforge_calendar_theme_to_css_variables($calendarTheme),
     ],
 ], JSON_UNESCAPED_SLASHES);
 

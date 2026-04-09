@@ -130,6 +130,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modal) modal.hidden = false;
   }
 
+  function applyCalendarThemeVariables(themeVars, scope = document.documentElement) {
+    if (!themeVars || typeof themeVars !== 'object' || !scope) {
+      return;
+    }
+
+    Object.entries(themeVars).forEach(([key, value]) => {
+      if (typeof value === 'string' && value.trim() !== '') {
+        scope.style.setProperty(key, value);
+      }
+    });
+  }
+
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   if (backdrop) backdrop.addEventListener('click', closeModal);
 
@@ -157,6 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch('/event-forge/events/api.php')
         .then((response) => response.json())
         .then((data) => {
+          if (data.meta && data.meta.calendar_theme_css_variables) {
+            applyCalendarThemeVariables(data.meta.calendar_theme_css_variables);
+          }
+
           if (data.meta && data.meta.app_version) {
             injectPoweredBy(data.meta.app_version);
           }

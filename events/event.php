@@ -9,6 +9,7 @@ if (!eventforge_is_installed()) {
 }
 
 require_once __DIR__ . '/includes/db.php';
+require_once __DIR__ . '/includes/theme.php';
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $slug = trim($_GET['slug'] ?? '');
@@ -51,6 +52,7 @@ $end = !empty($event['end_datetime']) ? strtotime((string) $event['end_datetime'
 $isCanceled = !empty($event['is_canceled']);
 $categoryColor = (string) ($event['category_color'] ?? '');
 $categoryFontColor = (string) ($event['category_font_color'] ?? '');
+$calendarTheme = eventforge_get_calendar_theme($connection);
 ?>
 <!doctype html>
 <html lang="en">
@@ -64,15 +66,21 @@ $categoryFontColor = (string) ($event['category_font_color'] ?? '');
       margin: 0;
       padding: 2rem;
       background: #f5f7fa;
-      color: #1f2937;
+      color: <?= htmlspecialchars($calendarTheme['theme_calendar_text_color']) ?>;
     }
 
     .wrap {
       max-width: 860px;
       margin: 0 auto;
-      background: #fff;
+      background: linear-gradient(
+        0deg,
+        <?= htmlspecialchars($calendarTheme['theme_calendar_modal_gradient_start_color']) ?> 20.3%,
+        <?= htmlspecialchars($calendarTheme['theme_calendar_modal_gradient_end_color']) ?> 100%
+      );
+      color: <?= htmlspecialchars($calendarTheme['theme_calendar_modal_text_color']) ?>;
       padding: 2rem;
       border-radius: 14px;
+      border: 1px solid <?= htmlspecialchars($calendarTheme['theme_calendar_border_color']) ?>;
       box-shadow: 0 10px 24px rgba(0,0,0,.08);
     }
 
@@ -86,13 +94,13 @@ $categoryFontColor = (string) ($event['category_font_color'] ?? '');
     }
 
     .canceled {
-      color: #c62828;
+      color: #ffcccc;
       font-weight: 700;
       margin-left: .5rem;
     }
 
     .meta {
-      color: #4b5563;
+      color: rgba(255, 255, 255, 0.85);
       margin-bottom: 1rem;
     }
 
@@ -106,11 +114,11 @@ $categoryFontColor = (string) ($event['category_font_color'] ?? '');
     a.button {
       display: inline-block;
       padding: .55rem .9rem;
-      border: 1px solid #333;
+      border: 1px solid <?= htmlspecialchars($calendarTheme['theme_calendar_border_color']) ?>;
       border-radius: 6px;
       text-decoration: none;
-      color: #111;
-      background: #fff;
+      color: <?= htmlspecialchars($calendarTheme['theme_calendar_button_text_color']) ?>;
+      background: <?= htmlspecialchars($calendarTheme['theme_calendar_button_background_color']) ?>;
       margin-top: 1rem;
     }
   </style>
@@ -121,8 +129,8 @@ $categoryFontColor = (string) ($event['category_font_color'] ?? '');
       <div
         class="category-pill"
         style="
-          background: <?= htmlspecialchars($categoryColor !== '' ? $categoryColor : '#e8edf3') ?>;
-          color: <?= htmlspecialchars($categoryFontColor !== '' ? $categoryFontColor : '#1f2937') ?>;
+          background: <?= htmlspecialchars($categoryColor !== '' ? $categoryColor : '#E8EDF3') ?>;
+          color: <?= htmlspecialchars($categoryFontColor !== '' ? $categoryFontColor : '#1F2937') ?>;
         "
       >
         <?= htmlspecialchars((string) $event['category_name']) ?>

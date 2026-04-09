@@ -13,6 +13,190 @@ require __DIR__ . '/../includes/auth.php';
 
 require_login();
 
+function eventforge_parse_admin_datetime(?string $value): ?DateTimeImmutable
+{
+    if ($value === null) {
+        return null;
+    }
+
+    $value = trim($value);
+
+    if ($value === '') {
+        return null;
+    }
+
+    try {
+        return new DateTimeImmutable($value);
+    } catch (Throwable $exception) {
+        return null;
+    }
+}
+
+function eventforge_get_admin_effective_end(?DateTimeImmutable $start, ?DateTimeImmutable $end): ?DateTimeImmutable
+{
+    return $end ?? $start;
+}
+
+function eventforge_classify_admin_window(?DateTimeImmutable $start, ?DateTimeImmutable $end, DateTimeImmutable $now): array
+{
+    $effectiveEnd = eventforge_get_admin_effective_end($start, $end);
+
+    if ($start instanceof DateTimeImmutable && $effectiveEnd instanceof DateTimeImmutable) {
+        if ($start <= $now && $effectiveEnd >= $now) {
+            return [
+                'section' => 'ongoing',
+                'sort_timestamp' => $effectiveEnd->getTimestamp(),
+                'is_ongoing' => true,
+            ];
+        }
+
+        if ($start > $now) {
+            return [
+                'section' => 'upcoming',
+                'sort_timestamp' => $start->getTimestamp(),
+                'is_ongoing' => false,
+            ];
+        }
+    }
+
+    if ($effectiveEnd instanceof DateTimeImmutable) {
+        return [
+            'section' => 'past',
+            'sort_timestamp' => $effectiveEnd->getTimestamp(),
+            'is_ongoing' => false,
+        ];
+    }
+
+    if ($start instanceof DateTimeImmutable) {
+        return [
+            'section' => 'past',
+            'sort_timestamp' => $start->getTimestamp(),
+            'is_ongoing' => false,
+        ];
+    }
+
+    return [
+        'section' => 'past',
+        'sort_timestamp' => 0,
+        'is_ongoing' => false,
+    ];
+}
+
+function eventforge_build_admin_row_meta(array $row, DateTimeImmutable $now): array
+{
+    $start = eventforge_parse_admin_datetime($row['start_datetime'] ?? null);
+    $end = eventforge_parse_admin_datetime($row['end_datetime'] ?? null);
+
+    $timing = eventforge_classify_admin_window($start, $end, $now);
+
+    return [
+        'section' => $timing['section'],
+        'sort_timestamp' => $timing['sort_timestamp'],
+        'is_ongoing' => $timing['is_ongoing'],
+        'display_start' => (string) ($row['start_datetime'] ?? ''),
+        'display_end' => (string) ($row['end_datetime'] ?? ''),
+        'context_label' => '',
+    ];
+}
+
+function eventforge_admin_section_priority(string $section): int
+{
+    switch ($section) {
+        case 'ongoing':
+            return 0;
+
+        case 'upcoming':
+            return 1;
+
+        case 'past':
+            return 2;
+
+        default:
+            return 3;
+    }
+}
+
+function eventforge_compare_prepared_admin_rows(array $a, array $b): int
+{
+    $sectionCompare = eventforge_admin_section_priority($a['meta']['section'])
+        <=> eventforge_admin_section_priority($b['meta']['section']);
+
+    if ($sectionCompare !== 0) {
+        return $sectionCompare;
+    }
+
+    $aTimestamp = (int) ($a['meta']['sort_timestamp'] ?? 0);
+    $bTimestamp = (int) ($b['meta']['sort_timestamp'] ?? 0);
+
+    if (($a['meta']['section'] ?? '') === 'past') {
+        $timestampCompare = $bTimestamp <=> $aTimestamp;
+    } else {
+        $timestampCompare = $aTimestamp <=> $bTimestamp;
+    }
+
+    if ($timestampCompare !== 0) {
+        return $timestampCompare;
+    }
+
+    $startCompare = strcmp(
+        (string) ($a['row']['start_datetime'] ?? ''),
+        (string) ($b['row']['start_datetime'] ?? '')
+    );
+
+    if ($startCompare !== 0) {
+        return $startCompare;
+    }
+
+    $titleCompare = strcmp(
+        (string) ($a['row']['title'] ?? ''),
+        (string) ($b['row']['title'] ?? '')
+    );
+
+    if ($titleCompare !== 0) {
+        return $titleCompare;
+    }
+
+    return ((int) ($a['row']['id'] ?? 0)) <=> ((int) ($b['row']['id'] ?? 0));
+}
+
+function eventforge_build_admin_parent_meta(array $parentRow, array $childRows, DateTimeImmutable $now): array
+{
+    if (count($childRows) === 0) {
+        return eventforge_build_admin_row_meta($parentRow, $now);
+    }
+
+    $preparedChildren = [];
+
+    foreach ($childRows as $childRow) {
+        $preparedChildren[] = [
+            'row' => $childRow,
+            'meta' => eventforge_build_admin_row_meta($childRow, $now),
+        ];
+    }
+
+    usort($preparedChildren, 'eventforge_compare_prepared_admin_rows');
+
+    $reference = $preparedChildren[0];
+    $section = (string) ($reference['meta']['section'] ?? 'past');
+
+    $contextLabel = 'Last child';
+
+    if ($section === 'ongoing') {
+        $contextLabel = 'Ongoing child';
+    } elseif ($section === 'upcoming') {
+        $contextLabel = 'Next child';
+    }
+
+    return [
+        'section' => $section,
+        'sort_timestamp' => (int) ($reference['meta']['sort_timestamp'] ?? 0),
+        'is_ongoing' => !empty($reference['meta']['is_ongoing']),
+        'display_start' => (string) ($reference['row']['start_datetime'] ?? ''),
+        'display_end' => (string) ($reference['row']['end_datetime'] ?? ''),
+        'context_label' => $contextLabel,
+    ];
+}
+
 $sql = "
     SELECT
         id,
@@ -27,17 +211,8 @@ $sql = "
         is_canceled
     FROM events
     ORDER BY
-        CASE
-            WHEN is_recurring_parent = 1 THEN id
-            WHEN parent_event_id IS NOT NULL THEN parent_event_id
-            ELSE id
-        END ASC,
-        CASE
-            WHEN is_recurring_parent = 1 THEN 0
-            WHEN parent_event_id IS NOT NULL THEN 1
-            ELSE 0
-        END ASC,
-        start_datetime ASC
+        start_datetime ASC,
+        id ASC
 ";
 
 $result = mysqli_query($connection, $sql);
@@ -45,6 +220,64 @@ $result = mysqli_query($connection, $sql);
 if (!$result) {
     exit('Query failed: ' . mysqli_error($connection));
 }
+
+$allRows = [];
+$childrenByParent = [];
+
+while ($row = mysqli_fetch_assoc($result)) {
+    $allRows[] = $row;
+
+    if (!empty($row['parent_event_id'])) {
+        $parentId = (int) $row['parent_event_id'];
+
+        if (!isset($childrenByParent[$parentId])) {
+            $childrenByParent[$parentId] = [];
+        }
+
+        $childrenByParent[$parentId][] = $row;
+    }
+}
+
+$now = new DateTimeImmutable('now');
+$preparedTopLevelRows = [];
+
+foreach ($allRows as $row) {
+    $hasParent = !empty($row['parent_event_id']);
+
+    if ($hasParent) {
+        continue;
+    }
+
+    $isParent = !empty($row['is_recurring_parent']);
+    $rowId = (int) $row['id'];
+
+    if ($isParent) {
+        $meta = eventforge_build_admin_parent_meta($row, $childrenByParent[$rowId] ?? [], $now);
+    } else {
+        $meta = eventforge_build_admin_row_meta($row, $now);
+    }
+
+    $preparedChildren = [];
+
+    if ($isParent && isset($childrenByParent[$rowId])) {
+        foreach ($childrenByParent[$rowId] as $childRow) {
+            $preparedChildren[] = [
+                'row' => $childRow,
+                'meta' => eventforge_build_admin_row_meta($childRow, $now),
+            ];
+        }
+
+        usort($preparedChildren, 'eventforge_compare_prepared_admin_rows');
+    }
+
+    $preparedTopLevelRows[] = [
+        'row' => $row,
+        'meta' => $meta,
+        'children' => $preparedChildren,
+    ];
+}
+
+usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
 ?>
 <!doctype html>
 <html lang="en">
@@ -74,7 +307,8 @@ if (!$result) {
       background: #fff;
     }
 
-    th, td {
+    th,
+    td {
       border: 1px solid #ddd;
       padding: .75rem;
       text-align: left;
@@ -105,6 +339,10 @@ if (!$result) {
       border-left: 4px solid #167151;
     }
 
+    .ongoing-row td {
+      background: #eef8f0;
+    }
+
     .series-toggle {
       background: none;
       border: 0;
@@ -133,6 +371,18 @@ if (!$result) {
       color: #c62828;
       font-weight: bold;
       margin-left: .5rem;
+    }
+
+    .status-ongoing {
+      display: inline-block;
+      margin-left: .5rem;
+      padding: .15rem .45rem;
+      border-radius: 999px;
+      background: #167151;
+      color: #fff;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .03em;
     }
 
     .title-canceled {
@@ -172,6 +422,22 @@ if (!$result) {
       border-radius: 999px;
       padding: .2rem .5rem;
     }
+
+    .series-note,
+    .date-note {
+      display: block;
+      margin-top: .35rem;
+      font-size: .8rem;
+      color: #5b6470;
+    }
+
+    .past-divider td {
+      background: #e9edf2 !important;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: #374151;
+    }
   </style>
 </head>
 <body>
@@ -206,25 +472,33 @@ if (!$result) {
       </tr>
     </thead>
     <tbody>
-      <?php while ($row = mysqli_fetch_assoc($result)): ?>
+      <?php
+      $pastDividerInserted = false;
+      ?>
+
+      <?php foreach ($preparedTopLevelRows as $item): ?>
         <?php
+        $row = $item['row'];
+        $meta = $item['meta'];
+        $childItems = $item['children'];
+
         $isParent = !empty($row['is_recurring_parent']);
         $hasParent = !empty($row['parent_event_id']);
         $isIndependent = !empty($row['is_independent_child']);
         $isCanceled = !empty($row['is_canceled']);
+        $isOngoing = !empty($meta['is_ongoing']);
 
-        $eventUrl = eventforge_public_path('event.php') . '?id=' . (int) $row['id'];
-        if (!empty($row['slug'])) {
-            $eventUrl .= '&slug=' . urlencode((string) $row['slug']);
+        if (!$pastDividerInserted && ($meta['section'] ?? '') === 'past') {
+            $pastDividerInserted = true;
+            ?>
+            <tr class="past-divider">
+              <td colspan="6">Past Events</td>
+            </tr>
+            <?php
         }
         ?>
-        <tr
-          <?php if ($hasParent && !$isParent): ?>
-            class="child-row<?= $isIndependent ? ' independent-child-row' : '' ?>"
-            data-child-of="<?= (int) $row['parent_event_id'] ?>"
-            style="display:none;"
-          <?php endif; ?>
-        >
+
+        <tr class="<?= $isOngoing ? 'ongoing-row' : '' ?>">
           <td>
             <?php if ($isParent): ?>
               <button
@@ -234,9 +508,14 @@ if (!$result) {
                 aria-expanded="false"
                 title="Show or hide generated child events"
               >▸</button>
+
               <span title="Recurring parent event. Editing this updates the generated child events." style="color:#f3be11; font-weight:bold;">
                 ★ Parent
               </span>
+
+              <?php if (($meta['context_label'] ?? '') !== ''): ?>
+                <span class="series-note"><?= htmlspecialchars((string) $meta['context_label']) ?></span>
+              <?php endif; ?>
 
             <?php elseif ($hasParent && $isIndependent): ?>
               <span title="Independent child event. Originally generated by a recurring parent, now maintained separately." style="color:#167151; padding-left:1.5rem; font-weight:bold;">
@@ -260,10 +539,20 @@ if (!$result) {
             <?php else: ?>
               <?= htmlspecialchars((string) $row['title']) ?>
             <?php endif; ?>
+
+            <?php if ($isOngoing): ?>
+              <span class="status-ongoing">ONGOING</span>
+            <?php endif; ?>
           </td>
 
-          <td><?= htmlspecialchars((string) $row['start_datetime']) ?></td>
-          <td><?= htmlspecialchars((string) ($row['end_datetime'] ?? '')) ?></td>
+          <td>
+            <?= htmlspecialchars((string) ($meta['display_start'] ?? '')) ?>
+            <?php if ($isParent && ($meta['context_label'] ?? '') !== ''): ?>
+              <span class="date-note"><?= htmlspecialchars((string) $meta['context_label']) ?></span>
+            <?php endif; ?>
+          </td>
+
+          <td><?= htmlspecialchars((string) ($meta['display_end'] ?? '')) ?></td>
 
           <td>
             <?= !empty($row['is_published']) ? 'Yes' : 'No' ?>
@@ -315,7 +604,94 @@ if (!$result) {
             <?php endif; ?>
           </td>
         </tr>
-      <?php endwhile; ?>
+
+        <?php foreach ($childItems as $childItem): ?>
+          <?php
+          $childRow = $childItem['row'];
+          $childMeta = $childItem['meta'];
+          $childIsIndependent = !empty($childRow['is_independent_child']);
+          $childIsCanceled = !empty($childRow['is_canceled']);
+          $childIsOngoing = !empty($childMeta['is_ongoing']);
+          ?>
+          <tr
+            class="child-row<?= $childIsIndependent ? ' independent-child-row' : '' ?><?= $childIsOngoing ? ' ongoing-row' : '' ?>"
+            data-child-of="<?= (int) $row['id'] ?>"
+            style="display:none;"
+          >
+            <td>
+              <?php if ($childIsIndependent): ?>
+                <span title="Independent child event. Originally generated by a recurring parent, now maintained separately." style="color:#167151; padding-left:1.5rem; font-weight:bold;">
+                  ↳ Independent
+                </span>
+              <?php else: ?>
+                <span title="Generated child event from a recurring parent." style="color:#3f6244; padding-left:1.5rem;">
+                  ↳ Child
+                </span>
+              <?php endif; ?>
+            </td>
+
+            <td>
+              <?php if ($childIsCanceled): ?>
+                <span class="title-canceled"><?= htmlspecialchars((string) $childRow['title']) ?></span>
+                <span class="status-canceled">CANCELED</span>
+              <?php else: ?>
+                <?= htmlspecialchars((string) $childRow['title']) ?>
+              <?php endif; ?>
+
+              <?php if ($childIsOngoing): ?>
+                <span class="status-ongoing">ONGOING</span>
+              <?php endif; ?>
+            </td>
+
+            <td><?= htmlspecialchars((string) ($childMeta['display_start'] ?? '')) ?></td>
+            <td><?= htmlspecialchars((string) ($childMeta['display_end'] ?? '')) ?></td>
+
+            <td>
+              <?= !empty($childRow['is_published']) ? 'Yes' : 'No' ?>
+              |
+              <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-publish.php')) ?>?id=<?= (int) $childRow['id'] ?>">
+                <?= !empty($childRow['is_published']) ? 'Unpublish' : 'Publish' ?>
+              </a>
+            </td>
+
+            <td>
+              <?php if (!$childIsIndependent): ?>
+                <div><em>Generated from series</em></div>
+                <div>
+                  <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $childRow['id'] ?>">View</a>
+                  |
+                  <a
+                    href="<?= htmlspecialchars(eventforge_admin_path('make-independent.php')) ?>?id=<?= (int) $childRow['id'] ?>"
+                    title="This child will remain grouped under the parent series, but future parent changes will not overwrite it."
+                    onclick="return confirm('Make this generated child independent? Future parent changes will no longer overwrite this event.');"
+                  >
+                    Make Independent
+                  </a>
+                  |
+                  <?php if ($childIsCanceled): ?>
+                    <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Mark this event as active again?');">
+                      Uncancel
+                    </a>
+                  <?php else: ?>
+                    <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Cancel this event? This will also make it independent from the series.');">
+                      Cancel
+                    </a>
+                  <?php endif; ?>
+                </div>
+              <?php else: ?>
+                <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $childRow['id'] ?>">View</a> |
+                <a href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>?id=<?= (int) $childRow['id'] ?>">Edit</a> |
+                <?php if ($childIsCanceled): ?>
+                  <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Mark this event as active again?');">Uncancel</a> |
+                <?php else: ?>
+                  <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Cancel this event?');">Cancel</a> |
+                <?php endif; ?>
+                <a href="<?= htmlspecialchars(eventforge_admin_path('delete-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Delete this event?');">Delete</a>
+              <?php endif; ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      <?php endforeach; ?>
     </tbody>
   </table>
 
