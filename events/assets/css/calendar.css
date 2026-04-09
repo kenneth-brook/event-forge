@@ -68,7 +68,8 @@
 
 #modal-datetime,
 #modal-location-wrap,
-#modal-pdf-wrap {
+#modal-pdf-wrap,
+#modal-external-wrap {
   margin: 0 0 0.75rem;
 }
 

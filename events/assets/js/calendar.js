@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalPdfWrap = document.getElementById('modal-pdf-wrap');
   const modalPdf = document.getElementById('modal-pdf');
 
+  const modalExternalWrap = document.getElementById('modal-external-wrap');
+  const modalExternal = document.getElementById('modal-external');
+
   const closeBtn = document.querySelector('.event-modal-close');
   const backdrop = document.querySelector('.event-modal-backdrop');
 
@@ -29,11 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modal) modal.hidden = true;
     if (modalImage) modalImage.removeAttribute('src');
     if (modalPdf) modalPdf.removeAttribute('href');
+    if (modalExternal) modalExternal.removeAttribute('href');
   };
 
   function openEventModal(event) {
     const props = event.extendedProps || {};
     const isCanceled = !!props.isCanceled;
+    const safeExternalUrl = getSafeExternalUrl(props.externalUrl);
 
     if (modalTitle) {
       modalTitle.textContent = isCanceled
@@ -124,6 +129,16 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         modalPdf.removeAttribute('href');
         modalPdfWrap.hidden = true;
+      }
+    }
+
+    if (modalExternalWrap && modalExternal) {
+      if (safeExternalUrl) {
+        modalExternal.href = safeExternalUrl;
+        modalExternalWrap.hidden = false;
+      } else {
+        modalExternal.removeAttribute('href');
+        modalExternalWrap.hidden = true;
       }
     }
 
@@ -314,6 +329,29 @@ function injectPoweredBy(version) {
   el.textContent = `Powered by Event Forge v${version}`;
 }
 
+function getSafeExternalUrl(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    return '';
+  }
+
+  try {
+    const parsed = new URL(trimmed, window.location.origin);
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return '';
+    }
+
+    return parsed.href;
+  } catch (error) {
+    return '';
+  }
+}
+
 function ensureEventModal() {
   let modal = document.getElementById('event-modal');
 
@@ -346,6 +384,10 @@ function ensureEventModal() {
 
         <p id="modal-pdf-wrap" hidden>
           <a id="modal-pdf" href="#" target="_blank" rel="noopener">View Event Flyer</a>
+        </p>
+
+        <p id="modal-external-wrap" hidden>
+          <a id="modal-external" href="#" target="_blank" rel="noopener">More Info</a>
         </p>
       </div>
     </div>
