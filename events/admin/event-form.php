@@ -14,6 +14,41 @@ require __DIR__ . '/../includes/recurrence.php';
 
 require_login();
 
+if (!function_exists('eventforge_resolve_recurrence_type')) {
+    function eventforge_resolve_recurrence_type(array $event): string
+    {
+        $type = strtolower(trim((string) ($event['recurrence_type'] ?? '')));
+
+        if ($type === 'monthly') {
+            $type = 'monthly_nth';
+        }
+
+        if (in_array($type, ['daily', 'weekly', 'monthly_nth', 'annual'], true)) {
+            return $type;
+        }
+
+        $hasMonthlyParts = trim((string) ($event['recurrence_week_of_month'] ?? '')) !== ''
+            && trim((string) ($event['recurrence_day_of_week'] ?? '')) !== '';
+
+        if ($hasMonthlyParts) {
+            return 'monthly_nth';
+        }
+
+        $daysRaw = $event['recurrence_days'] ?? '';
+        $days = is_array($daysRaw)
+            ? $daysRaw
+            : explode(',', (string) $daysRaw);
+
+        foreach ($days as $day) {
+            if (trim((string) $day) !== '') {
+                return 'weekly';
+            }
+        }
+
+        return '';
+    }
+}
+
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 
 $event = [
@@ -30,8 +65,6 @@ $event = [
     'external_url' => '',
     'is_published' => 1,
     'category_id' => '',
-
-    // Recurrence fields
     'parent_event_id' => '',
     'is_recurring_parent' => 0,
     'recurrence_type' => '',
@@ -80,6 +113,22 @@ $weekdayOptions = [
     'FR' => 'Friday',
     'SA' => 'Saturday',
 ];
+
+$annualPatternMode = 'same_date';
+if (
+    $resolvedRecurrenceType === 'annual'
+    && (
+        trim((string) ($event['recurrence_week_of_month'] ?? '')) !== ''
+        || trim((string) ($event['recurrence_day_of_week'] ?? '')) !== ''
+    )
+) {
+    $annualPatternMode = 'nth_weekday';
+}
+
+$annualAnchorLabel = '';
+if (!empty($event['start_datetime'])) {
+    $annualAnchorLabel = date('F j', strtotime((string) $event['start_datetime']));
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -212,7 +261,8 @@ $weekdayOptions = [
     }
 
     .recurrence-section[hidden],
-    .recurrence-step[hidden] {
+    .recurrence-step[hidden],
+    .annual-pattern-fields[hidden] {
       display: none !important;
     }
 
@@ -232,13 +282,7 @@ $weekdayOptions = [
       <input type="hidden" name="id" value="<?= (int) $event['id'] ?>">
 
       <label for="title">Title</label>
-      <input
-        id="title"
-        name="title"
-        type="text"
-        required
-        value="<?= htmlspecialchars((string) $event['title']) ?>"
-      >
+      <input id="title" name="title" type="text" required value="<?= htmlspecialchars((string) $event['title']) ?>">
 
       <label for="start_datetime">Start Date/Time</label>
       <input
@@ -269,12 +313,7 @@ $weekdayOptions = [
       </div>
 
       <label for="location">Location</label>
-      <input
-        id="location"
-        name="location"
-        type="text"
-        value="<?= htmlspecialchars((string) $event['location']) ?>"
-      >
+      <input id="location" name="location" type="text" value="<?= htmlspecialchars((string) $event['location']) ?>">
 
       <label for="category_id">Category</label>
       <select id="category_id" name="category_id">
@@ -296,23 +335,14 @@ $weekdayOptions = [
       <textarea id="description" name="description"><?= htmlspecialchars((string) $event['description']) ?></textarea>
 
       <label for="external_url">External URL</label>
-      <input
-        id="external_url"
-        name="external_url"
-        type="url"
-        value="<?= htmlspecialchars((string) $event['external_url']) ?>"
-      >
+      <input id="external_url" name="external_url" type="url" value="<?= htmlspecialchars((string) $event['external_url']) ?>">
 
       <label for="image">Image Upload</label>
       <input id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp">
 
       <?php if (!empty($event['image_path'])): ?>
         <p>Current image:</p>
-        <img
-          class="preview-image"
-          src="<?= htmlspecialchars((string) $event['image_path']) ?>"
-          alt="Current event image"
-        >
+        <img class="preview-image" src="<?= htmlspecialchars((string) $event['image_path']) ?>" alt="Current event image">
       <?php endif; ?>
 
       <label for="pdf">PDF Upload</label>
@@ -356,20 +386,13 @@ $weekdayOptions = [
           <div class="recurrence-section">
             <p class="section-title">Repeat Settings</p>
 
-            <label for="recurrence_interval">
-              Repeat Every
-              <span
-                class="help-badge"
-                title="Daily: every X days. Weekly: every X weeks. Monthly: every X months. Annual: every X years."
-              >?</span>
-            </label>
+            <label for="recurrence_interval">Repeat Every</label>
             <input
               id="recurrence_interval"
               name="recurrence_interval"
               type="number"
               min="1"
               value="<?= htmlspecialchars((string) ($event['recurrence_interval'] ?? 1)) ?>"
-              data-recurrence-common
             >
 
             <label for="recurrence_end_date">Recurrence End Date</label>
@@ -378,7 +401,6 @@ $weekdayOptions = [
               name="recurrence_end_date"
               type="date"
               value="<?= !empty($event['recurrence_end_date']) ? htmlspecialchars((string) $event['recurrence_end_date']) : '' ?>"
-              data-recurrence-common
             >
 
             <p class="note" id="recurrence-horizon-note">
@@ -409,7 +431,6 @@ $weekdayOptions = [
               </label>
             <?php endforeach; ?>
           </div>
-          <p class="note">Pick one or more days for the weekly pattern.</p>
         </div>
 
         <div class="recurrence-section" id="recurrence-monthly-section" data-recurrence-section="monthly_nth" hidden>
@@ -436,15 +457,48 @@ $weekdayOptions = [
             <option value="FR" <?= ($event['recurrence_day_of_week'] ?? '') === 'FR' ? 'selected' : '' ?>>Friday</option>
             <option value="SA" <?= ($event['recurrence_day_of_week'] ?? '') === 'SA' ? 'selected' : '' ?>>Saturday</option>
           </select>
-
-          <p class="note">Example: first Monday, third Thursday, or last Saturday of the month.</p>
         </div>
 
         <div class="recurrence-section" id="recurrence-annual-section" data-recurrence-section="annual" hidden>
           <p class="section-title">Annual Pattern</p>
-          <p class="note">
-            Annual recurrence uses the event start date as the month/day anchor and generates up to 5 years ahead.
-          </p>
+
+          <label for="annual_pattern_mode">Annual Pattern Style</label>
+          <select id="annual_pattern_mode" name="annual_pattern_mode">
+            <option value="same_date" <?= $annualPatternMode === 'same_date' ? 'selected' : '' ?>>Same date each year</option>
+            <option value="nth_weekday" <?= $annualPatternMode === 'nth_weekday' ? 'selected' : '' ?>>Nth weekday of the month</option>
+          </select>
+
+          <div class="annual-pattern-fields" id="annual-same-date-fields">
+            <p class="note">
+              Uses the event start date as the yearly anchor<?= $annualAnchorLabel !== '' ? ': ' . htmlspecialchars($annualAnchorLabel) : '' ?>.
+            </p>
+          </div>
+
+          <div class="annual-pattern-fields" id="annual-nth-weekday-fields" hidden>
+            <label for="annual_recurrence_week_of_month">Week of Month</label>
+            <select id="annual_recurrence_week_of_month" name="annual_recurrence_week_of_month">
+              <option value="">Select</option>
+              <option value="first" <?= ($event['recurrence_week_of_month'] ?? '') === 'first' ? 'selected' : '' ?>>First</option>
+              <option value="second" <?= ($event['recurrence_week_of_month'] ?? '') === 'second' ? 'selected' : '' ?>>Second</option>
+              <option value="third" <?= ($event['recurrence_week_of_month'] ?? '') === 'third' ? 'selected' : '' ?>>Third</option>
+              <option value="fourth" <?= ($event['recurrence_week_of_month'] ?? '') === 'fourth' ? 'selected' : '' ?>>Fourth</option>
+              <option value="last" <?= ($event['recurrence_week_of_month'] ?? '') === 'last' ? 'selected' : '' ?>>Last</option>
+            </select>
+
+            <label for="annual_recurrence_day_of_week">Day of Week</label>
+            <select id="annual_recurrence_day_of_week" name="annual_recurrence_day_of_week">
+              <option value="">Select</option>
+              <option value="SU" <?= ($event['recurrence_day_of_week'] ?? '') === 'SU' ? 'selected' : '' ?>>Sunday</option>
+              <option value="MO" <?= ($event['recurrence_day_of_week'] ?? '') === 'MO' ? 'selected' : '' ?>>Monday</option>
+              <option value="TU" <?= ($event['recurrence_day_of_week'] ?? '') === 'TU' ? 'selected' : '' ?>>Tuesday</option>
+              <option value="WE" <?= ($event['recurrence_day_of_week'] ?? '') === 'WE' ? 'selected' : '' ?>>Wednesday</option>
+              <option value="TH" <?= ($event['recurrence_day_of_week'] ?? '') === 'TH' ? 'selected' : '' ?>>Thursday</option>
+              <option value="FR" <?= ($event['recurrence_day_of_week'] ?? '') === 'FR' ? 'selected' : '' ?>>Friday</option>
+              <option value="SA" <?= ($event['recurrence_day_of_week'] ?? '') === 'SA' ? 'selected' : '' ?>>Saturday</option>
+            </select>
+          </div>
+
+          <p class="note">Annual recurrences generate up to 5 years ahead or the recurrence end date, whichever comes first.</p>
         </div>
       </div>
 
@@ -463,21 +517,42 @@ $weekdayOptions = [
       const sections = document.querySelectorAll('[data-recurrence-section]');
       const horizonNote = document.getElementById('recurrence-horizon-note');
 
-      const typeInputGroups = {
-        daily: [],
-        weekly: Array.from(document.querySelectorAll('[data-recurrence-weekly]')),
-        monthly_nth: Array.from(document.querySelectorAll('[data-recurrence-monthly]')),
-        annual: []
-      };
+      const weeklyInputs = Array.from(document.querySelectorAll('[data-recurrence-weekly]'));
+      const monthlyInputs = Array.from(document.querySelectorAll('[data-recurrence-monthly]'));
+      const annualPatternMode = document.getElementById('annual_pattern_mode');
+      const annualSameDateFields = document.getElementById('annual-same-date-fields');
+      const annualNthWeekdayFields = document.getElementById('annual-nth-weekday-fields');
+      const annualWeekOfMonth = document.getElementById('annual_recurrence_week_of_month');
+      const annualDayOfWeek = document.getElementById('annual_recurrence_day_of_week');
 
-      function setDisabledForGroup(type, disabled) {
-        if (!typeInputGroups[type]) {
+      function disableInputs(inputs, disabled) {
+        inputs.forEach(function (input) {
+          input.disabled = disabled;
+        });
+      }
+
+      function updateAnnualPatternUi() {
+        if (!annualPatternMode || typeSelect.value !== 'annual' || recurringSelect.value !== '1') {
+          if (annualSameDateFields) annualSameDateFields.hidden = false;
+          if (annualNthWeekdayFields) annualNthWeekdayFields.hidden = true;
+          if (annualWeekOfMonth) annualWeekOfMonth.disabled = true;
+          if (annualDayOfWeek) annualDayOfWeek.disabled = true;
           return;
         }
 
-        typeInputGroups[type].forEach(function (input) {
-          input.disabled = disabled;
-        });
+        const mode = annualPatternMode.value;
+
+        if (mode === 'nth_weekday') {
+          annualSameDateFields.hidden = true;
+          annualNthWeekdayFields.hidden = false;
+          annualWeekOfMonth.disabled = false;
+          annualDayOfWeek.disabled = false;
+        } else {
+          annualSameDateFields.hidden = false;
+          annualNthWeekdayFields.hidden = true;
+          annualWeekOfMonth.disabled = true;
+          annualDayOfWeek.disabled = true;
+        }
       }
 
       function updateRecurrenceUi() {
@@ -493,11 +568,15 @@ $weekdayOptions = [
             section.hidden = true;
           });
 
-          Object.keys(typeInputGroups).forEach(function (groupType) {
-            setDisabledForGroup(groupType, true);
-          });
+          disableInputs(weeklyInputs, true);
+          disableInputs(monthlyInputs, true);
+
+          if (annualPatternMode) annualPatternMode.disabled = true;
+          if (annualWeekOfMonth) annualWeekOfMonth.disabled = true;
+          if (annualDayOfWeek) annualDayOfWeek.disabled = true;
 
           horizonNote.textContent = 'Occurrences are generated ahead based on the selected recurrence type.';
+          updateAnnualPatternUi();
           return;
         }
 
@@ -505,10 +584,15 @@ $weekdayOptions = [
 
         sections.forEach(function (section) {
           const sectionType = section.getAttribute('data-recurrence-section');
-          const active = sectionType === type;
-          section.hidden = !active;
-          setDisabledForGroup(sectionType, !active);
+          section.hidden = sectionType !== type;
         });
+
+        disableInputs(weeklyInputs, type !== 'weekly');
+        disableInputs(monthlyInputs, type !== 'monthly_nth');
+
+        if (annualPatternMode) {
+          annualPatternMode.disabled = type !== 'annual';
+        }
 
         switch (type) {
           case 'daily':
@@ -527,10 +611,16 @@ $weekdayOptions = [
             horizonNote.textContent = 'Occurrences are generated ahead based on the selected recurrence type.';
             break;
         }
+
+        updateAnnualPatternUi();
       }
 
       recurringSelect.addEventListener('change', updateRecurrenceUi);
       typeSelect.addEventListener('change', updateRecurrenceUi);
+
+      if (annualPatternMode) {
+        annualPatternMode.addEventListener('change', updateAnnualPatternUi);
+      }
 
       updateRecurrenceUi();
     })();

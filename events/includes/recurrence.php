@@ -289,6 +289,25 @@ function eventforge_normalize_recurrence_input(array $input, string $startDateti
     }
 
     if ($type === 'annual') {
+        $annualPatternMode = strtolower(trim((string) ($input['annual_pattern_mode'] ?? 'same_date')));
+
+        if ($annualPatternMode === 'nth_weekday') {
+            $allowedWeeks = ['first', 'second', 'third', 'fourth', 'last'];
+            $weekOfMonth = strtolower(trim((string) ($input['annual_recurrence_week_of_month'] ?? '')));
+            $dayOfWeek = strtoupper(trim((string) ($input['annual_recurrence_day_of_week'] ?? '')));
+
+            if (!in_array($weekOfMonth, $allowedWeeks, true)) {
+                $errors[] = 'Annual nth-weekday recurrence requires a valid week of month.';
+            }
+
+            if (!array_key_exists($dayOfWeek, eventforge_weekday_map())) {
+                $errors[] = 'Annual nth-weekday recurrence requires a valid day of week.';
+            }
+
+            $data['recurrence_week_of_month'] = $weekOfMonth;
+            $data['recurrence_day_of_week'] = $dayOfWeek;
+        }
+
         return [
             'data' => $data,
             'errors' => $errors,
@@ -518,7 +537,7 @@ function eventforge_generate_monthly_nth(mysqli $connection, array $parent): voi
     }
 }
 
-function eventforge_annual_instance_date(int $year, int $month, int $day): string
+function eventforge_annual_same_date_instance(int $year, int $month, int $day): string
 {
     $monthStart = new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month));
     $lastDayOfMonth = (int) $monthStart->modify('last day of this month')->format('d');
@@ -537,10 +556,22 @@ function eventforge_generate_annual(mysqli $connection, array $parent): void
     $month = (int) $start->format('m');
     $day = (int) $start->format('d');
 
+    $weekOfMonth = strtolower(trim((string) ($parent['recurrence_week_of_month'] ?? '')));
+    $dayOfWeek = strtoupper(trim((string) ($parent['recurrence_day_of_week'] ?? '')));
+    $useNthWeekday = $weekOfMonth !== '' && $dayOfWeek !== '';
+
     $year = $startYear;
 
     while (true) {
-        $instanceDate = eventforge_annual_instance_date($year, $month, $day);
+        if ($useNthWeekday) {
+            $instanceDate = eventforge_nth_weekday_of_month($year, $month, $weekOfMonth, $dayOfWeek);
+            if ($instanceDate === null) {
+                break;
+            }
+        } else {
+            $instanceDate = eventforge_annual_same_date_instance($year, $month, $day);
+        }
+
         $instance = new DateTimeImmutable($instanceDate);
 
         if ($instance > $endDate) {

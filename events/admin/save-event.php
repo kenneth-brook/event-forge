@@ -40,6 +40,7 @@ $recurrenceNormalized = eventforge_normalize_recurrence_input(
     [
         'is_recurring_parent' => $_POST['is_recurring_parent'] ?? '0',
         'recurrence_type' => $_POST['recurrence_type'] ?? '',
+        'annual_mode' => $_POST['annual_mode'] ?? 'date',
         'recurrence_interval' => $_POST['recurrence_interval'] ?? 1,
         'recurrence_days' => $_POST['recurrence_days'] ?? [],
         'recurrence_week_of_month' => $_POST['recurrence_week_of_month'] ?? '',
