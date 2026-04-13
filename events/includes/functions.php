@@ -81,7 +81,7 @@ function eventforge_build_public_event_url(mysqli $connection, int $eventId, ?st
         return '';
     }
 
-    $separator = str_contains($calendarUrl, '?') ? '&' : '?';
+    $separator = strpos($calendarUrl, '?') !== false ? '&' : '?';
     $url = rtrim($calendarUrl, '/') . $separator . 'event_id=' . $eventId;
 
     if ($slug !== null && $slug !== '') {
@@ -89,4 +89,31 @@ function eventforge_build_public_event_url(mysqli $connection, int $eventId, ?st
     }
 
     return $url;
+}
+
+function eventforge_build_qr_service_url(string $url, int $size = 240, int $margin = 16): string
+{
+    $url = trim($url);
+
+    if ($url === '') {
+        return '';
+    }
+
+    $size = max(120, min(1000, $size));
+    $margin = max(0, min(64, $margin));
+
+    return 'https://api.qrserver.com/v1/create-qr-code/?size='
+        . $size . 'x' . $size
+        . '&format=png'
+        . '&margin=' . $margin
+        . '&data=' . rawurlencode($url);
+}
+
+function eventforge_build_qr_filename(int $eventId, ?string $slug = null): string
+{
+    $base = $slug !== null && trim($slug) !== ''
+        ? eventforge_slugify($slug)
+        : 'event-' . $eventId;
+
+    return $base . '-qr.png';
 }

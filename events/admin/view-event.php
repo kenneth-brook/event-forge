@@ -49,10 +49,26 @@ $publicUrlMessage = $publicUrl !== ''
     ? $publicUrl
     : 'This feature requires further setup, please contact your administrator for assistance.';
 
+$qrImageUrl = '';
+$qrDownloadUrl = '';
+
+if ($publicUrl !== '') {
+    $qrImageUrl = eventforge_admin_path('qr-code.php')
+        . '?id=' . (int) $event['id']
+        . '&size=240';
+
+    $qrDownloadUrl = eventforge_admin_path('qr-code.php')
+        . '?id=' . (int) $event['id']
+        . '&size=1000&download=1';
+}
+
 $isCanceled = !empty($event['is_canceled']);
 $isRecurringParent = !empty($event['is_recurring_parent']);
 $isChild = !empty($event['parent_event_id']);
 $isIndependentChild = !empty($event['is_independent_child']);
+$hasImage = !empty($event['image_path']);
+$hasQr = $publicUrl !== '';
+$showMediaRow = $hasImage || $hasQr;
 ?>
 <!doctype html>
 <html lang="en">
@@ -68,7 +84,7 @@ $isIndependentChild = !empty($event['is_independent_child']);
     }
 
     .wrap {
-      max-width: 900px;
+      max-width: 960px;
       margin: 0 auto;
       background: #fff;
       padding: 2rem;
@@ -107,12 +123,59 @@ $isIndependentChild = !empty($event['is_independent_child']);
       font-family: monospace;
     }
 
+    .media-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .media-card {
+      border: 1px solid #d7dde5;
+      border-radius: 10px;
+      background: #f8fafc;
+      padding: 1rem;
+    }
+
+    .media-card h2 {
+      margin-top: 0;
+      margin-bottom: .75rem;
+    }
+
     .preview-image {
-      max-width: 320px;
+      width: 100%;
+      max-width: 100%;
       height: auto;
       border-radius: 8px;
       display: block;
-      margin-top: .5rem;
+      background: #fff;
+      border: 1px solid #d7dde5;
+      padding: .5rem;
+      box-sizing: border-box;
+    }
+
+    .qr-card {
+      text-align: center;
+    }
+
+    .qr-image {
+      display: block;
+      width: 100%;
+      max-width: 220px;
+      height: auto;
+      margin: 0 auto .75rem;
+      background: #fff;
+      border: 1px solid #d7dde5;
+      border-radius: 8px;
+      padding: .5rem;
+      box-sizing: border-box;
+    }
+
+    .qr-note {
+      font-size: .9rem;
+      color: #4b5563;
+      margin: 0 0 .75rem;
+      line-height: 1.4;
     }
 
     .button {
@@ -124,6 +187,7 @@ $isIndependentChild = !empty($event['is_independent_child']);
       color: #111;
       border-radius: 6px;
       margin-right: .5rem;
+      margin-bottom: .5rem;
       cursor: pointer;
     }
 
@@ -131,6 +195,12 @@ $isIndependentChild = !empty($event['is_independent_child']);
       color: #c62828;
       font-weight: 700;
       margin-left: .5rem;
+    }
+
+    @media (max-width: 760px) {
+      .media-row {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -199,6 +269,34 @@ $isIndependentChild = !empty($event['is_independent_child']);
       <?php endif; ?>
     </div>
 
+    <?php if ($showMediaRow): ?>
+      <div class="block">
+        <div class="media-row">
+          <?php if ($hasImage): ?>
+            <div class="media-card">
+              <h2>Image</h2>
+              <img class="preview-image" src="<?= htmlspecialchars((string) $event['image_path']) ?>" alt="<?= htmlspecialchars((string) $event['title']) ?>">
+            </div>
+          <?php endif; ?>
+
+          <?php if ($hasQr): ?>
+            <div class="media-card qr-card">
+              <h2>QR Code</h2>
+              <img
+                class="qr-image"
+                src="<?= htmlspecialchars($qrImageUrl) ?>"
+                alt="QR code for <?= htmlspecialchars((string) $event['title']) ?>"
+              >
+              <p class="qr-note">
+                Scan to open this event’s public link.
+              </p>
+              <a class="button" href="<?= htmlspecialchars($qrDownloadUrl) ?>">Download QR Code</a>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endif; ?>
+
     <?php if (!empty($event['summary'])): ?>
       <div class="block">
         <h2>Summary</h2>
@@ -210,13 +308,6 @@ $isIndependentChild = !empty($event['is_independent_child']);
       <div class="block">
         <h2>Description</h2>
         <div><?= nl2br(htmlspecialchars((string) $event['description'])) ?></div>
-      </div>
-    <?php endif; ?>
-
-    <?php if (!empty($event['image_path'])): ?>
-      <div class="block">
-        <h2>Image</h2>
-        <img class="preview-image" src="<?= htmlspecialchars((string) $event['image_path']) ?>" alt="<?= htmlspecialchars((string) $event['title']) ?>">
       </div>
     <?php endif; ?>
 
