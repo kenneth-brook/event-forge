@@ -10,6 +10,7 @@ if (!eventforge_is_installed()) {
 
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
+require __DIR__ . '/../includes/recurrence.php';
 
 require_login();
 
@@ -62,6 +63,9 @@ $categoryResult = mysqli_query($connection, "
 if (!$categoryResult) {
     exit('Category query failed: ' . mysqli_error($connection));
 }
+
+$resolvedRecurrenceType = eventforge_resolve_recurrence_type($event);
+$isRecurringSelected = !empty($event['is_recurring_parent']) ? '1' : '0';
 
 $selectedDays = !empty($event['recurrence_days'])
     ? array_map('trim', explode(',', (string) $event['recurrence_days']))
@@ -187,6 +191,36 @@ $weekdayOptions = [
       vertical-align: middle;
       margin-left: .35rem;
     }
+
+    .recurrence-shell {
+      border: 1px solid #d7dde5;
+      border-radius: 12px;
+      padding: 1rem 1rem 1.25rem;
+      background: #fafbfd;
+    }
+
+    .recurrence-step {
+      margin-top: 1rem;
+    }
+
+    .recurrence-section {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .recurrence-section[hidden],
+    .recurrence-step[hidden] {
+      display: none !important;
+    }
+
+    .section-title {
+      margin: 0 0 .5rem;
+      font-size: 1rem;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -297,90 +331,209 @@ $weekdayOptions = [
 
       <h2>Recurrence</h2>
 
-      <div class="inline">
-        <label>
-          <input type="checkbox" name="is_recurring_parent" value="1" <?= !empty($event['is_recurring_parent']) ? 'checked' : '' ?>>
-          Recurring Event
-        </label>
-      </div>
+      <div class="recurrence-shell">
+        <div class="recurrence-step">
+          <label for="is_recurring_parent">Does this event repeat?</label>
+          <select id="is_recurring_parent" name="is_recurring_parent">
+            <option value="0" <?= $isRecurringSelected === '0' ? 'selected' : '' ?>>No</option>
+            <option value="1" <?= $isRecurringSelected === '1' ? 'selected' : '' ?>>Yes</option>
+          </select>
+          <p class="note">Choose “Yes” only for the parent event that defines the series.</p>
+        </div>
 
-      <label for="recurrence_type">Recurrence Type</label>
-      <select id="recurrence_type" name="recurrence_type">
-        <option value="">None</option>
-        <option value="weekly" <?= ($event['recurrence_type'] ?? '') === 'weekly' ? 'selected' : '' ?>>Weekly</option>
-        <option value="monthly_nth" <?= ($event['recurrence_type'] ?? '') === 'monthly_nth' ? 'selected' : '' ?>>Monthly (Nth Weekday)</option>
-      </select>
+        <div class="recurrence-step" id="recurrence-type-step" hidden>
+          <label for="recurrence_type">Recurrence Type</label>
+          <select id="recurrence_type" name="recurrence_type">
+            <option value="">Select recurrence type</option>
+            <option value="daily" <?= $resolvedRecurrenceType === 'daily' ? 'selected' : '' ?>>Daily</option>
+            <option value="weekly" <?= $resolvedRecurrenceType === 'weekly' ? 'selected' : '' ?>>Weekly</option>
+            <option value="monthly_nth" <?= $resolvedRecurrenceType === 'monthly_nth' ? 'selected' : '' ?>>Monthly</option>
+            <option value="annual" <?= $resolvedRecurrenceType === 'annual' ? 'selected' : '' ?>>Annual</option>
+          </select>
+        </div>
 
-      <label for="recurrence_interval">
-        Repeat Every
-        <span
-          class="help-badge"
-          title="For weekly recurrence: 1 means every week, 2 means every other week. For monthly recurrence: 1 means every month, 2 means every other month."
-        >?</span>
-      </label>
-      <input
-        id="recurrence_interval"
-        name="recurrence_interval"
-        type="number"
-        min="1"
-        value="<?= htmlspecialchars((string) ($event['recurrence_interval'] ?? 1)) ?>"
-      >
+        <div class="recurrence-step" id="recurrence-common-step" hidden>
+          <div class="recurrence-section">
+            <p class="section-title">Repeat Settings</p>
 
-      <p><strong>Weekly Days</strong></p>
-      <div class="checkbox-grid">
-        <?php foreach ($weekdayOptions as $code => $label): ?>
-          <label>
+            <label for="recurrence_interval">
+              Repeat Every
+              <span
+                class="help-badge"
+                title="Daily: every X days. Weekly: every X weeks. Monthly: every X months. Annual: every X years."
+              >?</span>
+            </label>
             <input
-              type="checkbox"
-              name="recurrence_days[]"
-              value="<?= htmlspecialchars($code) ?>"
-              <?= in_array($code, $selectedDays, true) ? 'checked' : '' ?>
+              id="recurrence_interval"
+              name="recurrence_interval"
+              type="number"
+              min="1"
+              value="<?= htmlspecialchars((string) ($event['recurrence_interval'] ?? 1)) ?>"
+              data-recurrence-common
             >
-            <?= htmlspecialchars($label) ?>
-          </label>
-        <?php endforeach; ?>
+
+            <label for="recurrence_end_date">Recurrence End Date</label>
+            <input
+              id="recurrence_end_date"
+              name="recurrence_end_date"
+              type="date"
+              value="<?= !empty($event['recurrence_end_date']) ? htmlspecialchars((string) $event['recurrence_end_date']) : '' ?>"
+              data-recurrence-common
+            >
+
+            <p class="note" id="recurrence-horizon-note">
+              Occurrences are generated ahead based on the selected recurrence type.
+            </p>
+          </div>
+        </div>
+
+        <div class="recurrence-section" id="recurrence-daily-section" data-recurrence-section="daily" hidden>
+          <p class="section-title">Daily Pattern</p>
+          <p class="note">This event will repeat every selected number of days from the start date.</p>
+        </div>
+
+        <div class="recurrence-section" id="recurrence-weekly-section" data-recurrence-section="weekly" hidden>
+          <p class="section-title">Weekly Pattern</p>
+          <p><strong>Repeat On</strong></p>
+          <div class="checkbox-grid">
+            <?php foreach ($weekdayOptions as $code => $label): ?>
+              <label>
+                <input
+                  type="checkbox"
+                  name="recurrence_days[]"
+                  value="<?= htmlspecialchars($code) ?>"
+                  <?= in_array($code, $selectedDays, true) ? 'checked' : '' ?>
+                  data-recurrence-weekly
+                >
+                <?= htmlspecialchars($label) ?>
+              </label>
+            <?php endforeach; ?>
+          </div>
+          <p class="note">Pick one or more days for the weekly pattern.</p>
+        </div>
+
+        <div class="recurrence-section" id="recurrence-monthly-section" data-recurrence-section="monthly_nth" hidden>
+          <p class="section-title">Monthly Pattern</p>
+
+          <label for="recurrence_week_of_month">Week of Month</label>
+          <select id="recurrence_week_of_month" name="recurrence_week_of_month" data-recurrence-monthly>
+            <option value="">Select</option>
+            <option value="first" <?= ($event['recurrence_week_of_month'] ?? '') === 'first' ? 'selected' : '' ?>>First</option>
+            <option value="second" <?= ($event['recurrence_week_of_month'] ?? '') === 'second' ? 'selected' : '' ?>>Second</option>
+            <option value="third" <?= ($event['recurrence_week_of_month'] ?? '') === 'third' ? 'selected' : '' ?>>Third</option>
+            <option value="fourth" <?= ($event['recurrence_week_of_month'] ?? '') === 'fourth' ? 'selected' : '' ?>>Fourth</option>
+            <option value="last" <?= ($event['recurrence_week_of_month'] ?? '') === 'last' ? 'selected' : '' ?>>Last</option>
+          </select>
+
+          <label for="recurrence_day_of_week">Day of Week</label>
+          <select id="recurrence_day_of_week" name="recurrence_day_of_week" data-recurrence-monthly>
+            <option value="">Select</option>
+            <option value="SU" <?= ($event['recurrence_day_of_week'] ?? '') === 'SU' ? 'selected' : '' ?>>Sunday</option>
+            <option value="MO" <?= ($event['recurrence_day_of_week'] ?? '') === 'MO' ? 'selected' : '' ?>>Monday</option>
+            <option value="TU" <?= ($event['recurrence_day_of_week'] ?? '') === 'TU' ? 'selected' : '' ?>>Tuesday</option>
+            <option value="WE" <?= ($event['recurrence_day_of_week'] ?? '') === 'WE' ? 'selected' : '' ?>>Wednesday</option>
+            <option value="TH" <?= ($event['recurrence_day_of_week'] ?? '') === 'TH' ? 'selected' : '' ?>>Thursday</option>
+            <option value="FR" <?= ($event['recurrence_day_of_week'] ?? '') === 'FR' ? 'selected' : '' ?>>Friday</option>
+            <option value="SA" <?= ($event['recurrence_day_of_week'] ?? '') === 'SA' ? 'selected' : '' ?>>Saturday</option>
+          </select>
+
+          <p class="note">Example: first Monday, third Thursday, or last Saturday of the month.</p>
+        </div>
+
+        <div class="recurrence-section" id="recurrence-annual-section" data-recurrence-section="annual" hidden>
+          <p class="section-title">Annual Pattern</p>
+          <p class="note">
+            Annual recurrence uses the event start date as the month/day anchor and generates up to 5 years ahead.
+          </p>
+        </div>
       </div>
-
-      <p><strong>Monthly Nth Weekday</strong></p>
-
-      <label for="recurrence_week_of_month">Week of Month</label>
-      <select id="recurrence_week_of_month" name="recurrence_week_of_month">
-        <option value="">Select</option>
-        <option value="first" <?= ($event['recurrence_week_of_month'] ?? '') === 'first' ? 'selected' : '' ?>>First</option>
-        <option value="second" <?= ($event['recurrence_week_of_month'] ?? '') === 'second' ? 'selected' : '' ?>>Second</option>
-        <option value="third" <?= ($event['recurrence_week_of_month'] ?? '') === 'third' ? 'selected' : '' ?>>Third</option>
-        <option value="fourth" <?= ($event['recurrence_week_of_month'] ?? '') === 'fourth' ? 'selected' : '' ?>>Fourth</option>
-        <option value="last" <?= ($event['recurrence_week_of_month'] ?? '') === 'last' ? 'selected' : '' ?>>Last</option>
-      </select>
-
-      <label for="recurrence_day_of_week">Day of Week</label>
-      <select id="recurrence_day_of_week" name="recurrence_day_of_week">
-        <option value="">Select</option>
-        <option value="SU" <?= ($event['recurrence_day_of_week'] ?? '') === 'SU' ? 'selected' : '' ?>>Sunday</option>
-        <option value="MO" <?= ($event['recurrence_day_of_week'] ?? '') === 'MO' ? 'selected' : '' ?>>Monday</option>
-        <option value="TU" <?= ($event['recurrence_day_of_week'] ?? '') === 'TU' ? 'selected' : '' ?>>Tuesday</option>
-        <option value="WE" <?= ($event['recurrence_day_of_week'] ?? '') === 'WE' ? 'selected' : '' ?>>Wednesday</option>
-        <option value="TH" <?= ($event['recurrence_day_of_week'] ?? '') === 'TH' ? 'selected' : '' ?>>Thursday</option>
-        <option value="FR" <?= ($event['recurrence_day_of_week'] ?? '') === 'FR' ? 'selected' : '' ?>>Friday</option>
-        <option value="SA" <?= ($event['recurrence_day_of_week'] ?? '') === 'SA' ? 'selected' : '' ?>>Saturday</option>
-      </select>
-
-      <label for="recurrence_end_date">Recurrence End Date</label>
-      <input
-        id="recurrence_end_date"
-        name="recurrence_end_date"
-        type="date"
-        value="<?= !empty($event['recurrence_end_date']) ? htmlspecialchars((string) $event['recurrence_end_date']) : '' ?>"
-      >
-
-      <p class="note">
-        Occurrences are generated up to one year ahead or the recurrence end date, whichever comes first.
-      </p>
 
       <div class="actions">
         <button type="submit">Save Event</button>
       </div>
     </form>
   </div>
+
+  <script>
+    (function () {
+      const recurringSelect = document.getElementById('is_recurring_parent');
+      const typeStep = document.getElementById('recurrence-type-step');
+      const commonStep = document.getElementById('recurrence-common-step');
+      const typeSelect = document.getElementById('recurrence_type');
+      const sections = document.querySelectorAll('[data-recurrence-section]');
+      const horizonNote = document.getElementById('recurrence-horizon-note');
+
+      const typeInputGroups = {
+        daily: [],
+        weekly: Array.from(document.querySelectorAll('[data-recurrence-weekly]')),
+        monthly_nth: Array.from(document.querySelectorAll('[data-recurrence-monthly]')),
+        annual: []
+      };
+
+      function setDisabledForGroup(type, disabled) {
+        if (!typeInputGroups[type]) {
+          return;
+        }
+
+        typeInputGroups[type].forEach(function (input) {
+          input.disabled = disabled;
+        });
+      }
+
+      function updateRecurrenceUi() {
+        const isRecurring = recurringSelect.value === '1';
+        const type = typeSelect.value;
+
+        typeStep.hidden = !isRecurring;
+        commonStep.hidden = !isRecurring || type === '';
+
+        if (!isRecurring) {
+          typeSelect.disabled = true;
+          sections.forEach(function (section) {
+            section.hidden = true;
+          });
+
+          Object.keys(typeInputGroups).forEach(function (groupType) {
+            setDisabledForGroup(groupType, true);
+          });
+
+          horizonNote.textContent = 'Occurrences are generated ahead based on the selected recurrence type.';
+          return;
+        }
+
+        typeSelect.disabled = false;
+
+        sections.forEach(function (section) {
+          const sectionType = section.getAttribute('data-recurrence-section');
+          const active = sectionType === type;
+          section.hidden = !active;
+          setDisabledForGroup(sectionType, !active);
+        });
+
+        switch (type) {
+          case 'daily':
+            horizonNote.textContent = 'Daily recurrences generate up to 1 year ahead or the end date, whichever comes first.';
+            break;
+          case 'weekly':
+            horizonNote.textContent = 'Weekly recurrences generate up to 1 year ahead or the end date, whichever comes first.';
+            break;
+          case 'monthly_nth':
+            horizonNote.textContent = 'Monthly recurrences generate up to 1 year ahead or the end date, whichever comes first.';
+            break;
+          case 'annual':
+            horizonNote.textContent = 'Annual recurrences generate up to 5 years ahead or the end date, whichever comes first.';
+            break;
+          default:
+            horizonNote.textContent = 'Occurrences are generated ahead based on the selected recurrence type.';
+            break;
+        }
+      }
+
+      recurringSelect.addEventListener('change', updateRecurrenceUi);
+      typeSelect.addEventListener('change', updateRecurrenceUi);
+
+      updateRecurrenceUi();
+    })();
+  </script>
 </body>
 </html>

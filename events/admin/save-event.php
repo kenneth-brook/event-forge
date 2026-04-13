@@ -32,28 +32,36 @@ $categoryId = isset($_POST['category_id']) && $_POST['category_id'] !== ''
     : 0;
 $categorySql = $categoryId > 0 ? (string) $categoryId : 'NULL';
 
-/*
-|--------------------------------------------------------------------------
-| Recurrence fields
-|--------------------------------------------------------------------------
-*/
-$isRecurringParent = isset($_POST['is_recurring_parent']) ? 1 : 0;
-$recurrenceType = trim($_POST['recurrence_type'] ?? '');
-$recurrenceInterval = max(1, (int) ($_POST['recurrence_interval'] ?? 1));
-$recurrenceDays = $_POST['recurrence_days'] ?? [];
-$recurrenceWeekOfMonth = trim($_POST['recurrence_week_of_month'] ?? '');
-$recurrenceDayOfWeek = trim($_POST['recurrence_day_of_week'] ?? '');
-$recurrenceEndDate = trim($_POST['recurrence_end_date'] ?? '');
-
-if (is_array($recurrenceDays)) {
-    $recurrenceDays = implode(',', array_map('trim', $recurrenceDays));
-} else {
-    $recurrenceDays = trim((string) $recurrenceDays);
-}
-
 if ($title === '' || $startDatetime === '') {
     exit('Title and start date/time are required.');
 }
+
+$recurrenceNormalized = eventforge_normalize_recurrence_input(
+    [
+        'is_recurring_parent' => $_POST['is_recurring_parent'] ?? '0',
+        'recurrence_type' => $_POST['recurrence_type'] ?? '',
+        'recurrence_interval' => $_POST['recurrence_interval'] ?? 1,
+        'recurrence_days' => $_POST['recurrence_days'] ?? [],
+        'recurrence_week_of_month' => $_POST['recurrence_week_of_month'] ?? '',
+        'recurrence_day_of_week' => $_POST['recurrence_day_of_week'] ?? '',
+        'recurrence_end_date' => $_POST['recurrence_end_date'] ?? '',
+    ],
+    $startDatetime
+);
+
+if (!empty($recurrenceNormalized['errors'])) {
+    exit(implode(' ', $recurrenceNormalized['errors']));
+}
+
+$recurrence = $recurrenceNormalized['data'];
+
+$isRecurringParent = (int) $recurrence['is_recurring_parent'];
+$recurrenceType = (string) $recurrence['recurrence_type'];
+$recurrenceInterval = $recurrence['recurrence_interval'];
+$recurrenceDays = (string) $recurrence['recurrence_days'];
+$recurrenceWeekOfMonth = (string) $recurrence['recurrence_week_of_month'];
+$recurrenceDayOfWeek = (string) $recurrence['recurrence_day_of_week'];
+$recurrenceEndDate = (string) $recurrence['recurrence_end_date'];
 
 $slug = eventforge_unique_event_slug($connection, $title, $id);
 $slugEsc = mysqli_real_escape_string($connection, $slug);
@@ -73,14 +81,15 @@ $recurrenceTypeEsc = mysqli_real_escape_string($connection, $recurrenceType);
 $recurrenceDaysEsc = mysqli_real_escape_string($connection, $recurrenceDays);
 $recurrenceWeekOfMonthEsc = mysqli_real_escape_string($connection, $recurrenceWeekOfMonth);
 $recurrenceDayOfWeekEsc = mysqli_real_escape_string($connection, $recurrenceDayOfWeek);
-$recurrenceEndDateSql = $recurrenceEndDate !== ''
-    ? "'" . mysqli_real_escape_string($connection, $recurrenceEndDate) . "'"
-    : 'NULL';
 
 $recurrenceTypeSql = $recurrenceType !== '' ? "'{$recurrenceTypeEsc}'" : 'NULL';
+$recurrenceIntervalSql = $recurrenceInterval !== null ? (string) ((int) $recurrenceInterval) : 'NULL';
 $recurrenceDaysSql = $recurrenceDays !== '' ? "'{$recurrenceDaysEsc}'" : 'NULL';
 $recurrenceWeekOfMonthSql = $recurrenceWeekOfMonth !== '' ? "'{$recurrenceWeekOfMonthEsc}'" : 'NULL';
 $recurrenceDayOfWeekSql = $recurrenceDayOfWeek !== '' ? "'{$recurrenceDayOfWeekEsc}'" : 'NULL';
+$recurrenceEndDateSql = $recurrenceEndDate !== ''
+    ? "'" . mysqli_real_escape_string($connection, $recurrenceEndDate) . "'"
+    : 'NULL';
 
 $imageSqlPart = '';
 $pdfSqlPart = '';
@@ -130,7 +139,7 @@ if ($id > 0) {
             is_published = {$isPublished},
             is_recurring_parent = {$isRecurringParent},
             recurrence_type = {$recurrenceTypeSql},
-            recurrence_interval = {$recurrenceInterval},
+            recurrence_interval = {$recurrenceIntervalSql},
             recurrence_days = {$recurrenceDaysSql},
             recurrence_week_of_month = {$recurrenceWeekOfMonthSql},
             recurrence_day_of_week = {$recurrenceDayOfWeekSql},
@@ -192,7 +201,7 @@ if ($id > 0) {
             {$isPublished},
             {$isRecurringParent},
             {$recurrenceTypeSql},
-            {$recurrenceInterval},
+            {$recurrenceIntervalSql},
             {$recurrenceDaysSql},
             {$recurrenceWeekOfMonthSql},
             {$recurrenceDayOfWeekSql},
