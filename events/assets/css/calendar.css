@@ -41,7 +41,8 @@
 .event-modal-panel div,
 .event-modal-panel span,
 .event-modal-panel strong,
-.event-modal-panel a {
+.event-modal-panel a,
+.event-modal-panel button {
   color: var(--ef-calendar-modal-text-color, #ffffff) !important;
 }
 
@@ -67,9 +68,7 @@
 }
 
 #modal-datetime,
-#modal-location-wrap,
-#modal-pdf-wrap,
-#modal-external-wrap {
+#modal-location-wrap {
   margin: 0 0 0.75rem;
 }
 
@@ -86,6 +85,92 @@
   width: 100%;
   height: auto;
   border-radius: 10px;
+}
+
+.event-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.event-modal-actions p {
+  margin: 0;
+}
+
+.event-modal-action-link,
+.event-modal-action-button {
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.event-modal-action-link:hover,
+.event-modal-action-button:hover,
+.event-modal-action-link:focus,
+.event-modal-action-button:focus {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.event-modal-action-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.event-modal-action-tile {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 110px;
+  min-width: 110px;
+  height: 110px;
+  min-height: 110px;
+  padding: 0.85rem 0.75rem;
+  text-align: center;
+  border-radius: 10px;
+  border: 1px solid var(--ef-calendar-border-color, #d7dde5) !important;
+  background: var(--ef-calendar-button-background-color, #ffffff) !important;
+  color: var(--ef-calendar-accent-color, #f3be11) !important;
+  box-sizing: border-box;
+}
+
+.event-modal-action-tile .event-modal-action-icon,
+.event-modal-action-tile .event-modal-action-label {
+  color: var(--ef-calendar-accent-color, #f3be11) !important;
+}
+
+.event-modal-action-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: block;
+}
+
+.event-modal-action-label {
+  display: block;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  font-weight: 700;
+  text-align: center;
+}
+
+.event-modal-share-status {
+  margin: 0.85rem 0 0;
+  font-size: 0.95rem;
+  color: var(--ef-calendar-modal-text-color, #ffffff) !important;
+}
+
+.event-modal-share-status.is-success {
+  color: var(--ef-calendar-modal-text-color, #ffffff) !important;
+}
+
+.event-modal-share-status.is-error {
+  color: #ffd6d6 !important;
 }
 
 /* calendar */
