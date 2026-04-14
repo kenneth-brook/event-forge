@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const modal = ensureEventModal();
+  const locationModal = ensureLocationModal();
+
   const modalTitle = document.getElementById('modal-title');
   const modalDate = document.getElementById('modal-datetime');
 
@@ -29,11 +31,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalShareButton = document.getElementById('modal-share-button');
   const modalShareStatus = document.getElementById('modal-share-status');
 
-  const closeBtn = document.querySelector('.event-modal-close');
-  const backdrop = document.querySelector('.event-modal-backdrop');
+  const modalLocationButtonWrap = document.getElementById('modal-location-button-wrap');
+  const modalLocationButton = document.getElementById('modal-location-button');
+
+  const closeBtn = modal.querySelector('.event-modal-close');
+  const backdrop = modal.querySelector('.event-modal-backdrop');
+
+  const locationCloseBtn = locationModal.querySelector('.event-modal-close');
+  const locationBackdrop = locationModal.querySelector('.event-modal-backdrop');
+  const locationModalTitle = document.getElementById('location-modal-title');
+  const locationModalAddress = document.getElementById('location-modal-address');
+  const locationModalNote = document.getElementById('location-modal-note');
+  const locationModalError = document.getElementById('location-modal-error');
 
   let activeEventForShare = null;
+  let activeEventForLocation = null;
   let shareStatusTimeout = null;
+  let mapboxPublicToken = '';
+  let locationMap = null;
+  let locationMarker = null;
+  let mapboxAssetsRequested = false;
+  let mapboxAssetsPromise = null;
 
   const clearShareStatus = () => {
     if (shareStatusTimeout) {
@@ -68,13 +86,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3000);
   };
 
+  const closeLocationModal = () => {
+    if (locationModal) {
+      locationModal.hidden = true;
+    }
+
+    activeEventForLocation = null;
+
+    if (locationModalError) {
+      locationModalError.hidden = true;
+      locationModalError.textContent = '';
+    }
+  };
+
   const closeModal = () => {
+    closeLocationModal();
+
     if (modal) modal.hidden = true;
     if (modalImage) modalImage.removeAttribute('src');
     if (modalPdf) modalPdf.removeAttribute('href');
     if (modalExternal) modalExternal.removeAttribute('href');
 
     activeEventForShare = null;
+    activeEventForLocation = null;
 
     if (modalShareButton) {
       modalShareButton.disabled = false;
@@ -82,6 +116,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clearShareStatus();
   };
+
+  function getSafeExternalUrl(value) {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return '';
+    }
+
+    try {
+      const parsed = new URL(trimmed, window.location.origin);
+
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return '';
+      }
+
+      return parsed.href;
+    } catch (error) {
+      return '';
+    }
+  }
 
   function buildEventShareUrl(event) {
     if (!event || typeof event.url !== 'string') {
@@ -107,6 +164,202 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function buildAddressLabel(props) {
+    const lines = [];
+
+    if (typeof props.location === 'string' && props.location.trim() !== '') {
+      lines.push(props.location.trim());
+    }
+
+    if (typeof props.addressLine1 === 'string' && props.addressLine1.trim() !== '') {
+      lines.push(props.addressLine1.trim());
+    }
+
+    if (typeof props.addressLine2 === 'string' && props.addressLine2.trim() !== '') {
+      lines.push(props.addressLine2.trim());
+    }
+
+    const city = typeof props.addressCity === 'string' ? props.addressCity.trim() : '';
+    const state = typeof props.addressState === 'string' ? props.addressState.trim() : '';
+    const postal = typeof props.addressPostalCode === 'string' ? props.addressPostalCode.trim() : '';
+
+    const cityStatePostalParts = [];
+    if (city !== '') {
+      cityStatePostalParts.push(city);
+    }
+    if (state !== '') {
+      cityStatePostalParts.push(state);
+    }
+    if (postal !== '') {
+      cityStatePostalParts.push(postal);
+    }
+
+    if (cityStatePostalParts.length > 0) {
+      lines.push(cityStatePostalParts.join(', ').replace(', ,', ', '));
+    }
+
+    return lines.join('<br>');
+  }
+
+  function eventHasUsableCoordinates(event) {
+    if (!event || !event.extendedProps) {
+      return false;
+    }
+
+    const lat = event.extendedProps.latitude;
+    const lng = event.extendedProps.longitude;
+
+    return typeof lat === 'number'
+      && typeof lng === 'number'
+      && lat >= -90
+      && lat <= 90
+      && lng >= -180
+      && lng <= 180;
+  }
+
+  function ensureMapboxAssets() {
+    if (window.mapboxgl) {
+      return Promise.resolve();
+    }
+
+    if (mapboxAssetsRequested && mapboxAssetsPromise) {
+      return mapboxAssetsPromise;
+    }
+
+    mapboxAssetsRequested = true;
+
+    mapboxAssetsPromise = new Promise((resolve, reject) => {
+      const existingCss = document.getElementById('eventforge-mapbox-css');
+      const existingJs = document.getElementById('eventforge-mapbox-js');
+
+      if (!existingCss) {
+        const css = document.createElement('link');
+        css.id = 'eventforge-mapbox-css';
+        css.rel = 'stylesheet';
+        css.href = 'https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css';
+        document.head.appendChild(css);
+      }
+
+      if (existingJs) {
+        if (window.mapboxgl) {
+          resolve();
+          return;
+        }
+
+        existingJs.addEventListener('load', () => resolve(), { once: true });
+        existingJs.addEventListener('error', () => reject(new Error('Mapbox JS failed to load.')), { once: true });
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.id = 'eventforge-mapbox-js';
+      script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js';
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Mapbox JS failed to load.'));
+      document.head.appendChild(script);
+    });
+
+    return mapboxAssetsPromise;
+  }
+
+  function renderLocationMap(event) {
+    if (!eventHasUsableCoordinates(event) || !mapboxPublicToken) {
+      throw new Error('No saved coordinates or public token available.');
+    }
+
+    const props = event.extendedProps || {};
+    const center = [props.longitude, props.latitude];
+
+    if (!window.mapboxgl) {
+      throw new Error('Mapbox GL is not available.');
+    }
+
+    window.mapboxgl.accessToken = mapboxPublicToken;
+
+    const mapEl = document.getElementById('location-map');
+
+    if (!mapEl) {
+      throw new Error('Location map container missing.');
+    }
+
+    if (!locationMap) {
+      locationMap = new window.mapboxgl.Map({
+        container: mapEl,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center,
+        zoom: 14
+      });
+
+      locationMap.addControl(new window.mapboxgl.NavigationControl(), 'top-right');
+
+      locationMarker = new window.mapboxgl.Marker()
+        .setLngLat(center)
+        .addTo(locationMap);
+    } else {
+      locationMap.setCenter(center);
+      locationMap.setZoom(14);
+
+      if (locationMarker) {
+        locationMarker.setLngLat(center);
+      } else {
+        locationMarker = new window.mapboxgl.Marker()
+          .setLngLat(center)
+          .addTo(locationMap);
+      }
+    }
+
+    window.setTimeout(() => {
+      if (locationMap) {
+        locationMap.resize();
+      }
+    }, 60);
+  }
+
+  async function openLocationModal(event) {
+    const props = event.extendedProps || {};
+
+    if (!eventHasUsableCoordinates(event)) {
+      return;
+    }
+
+    if (!mapboxPublicToken) {
+      return;
+    }
+
+    activeEventForLocation = event;
+
+    if (locationModalTitle) {
+      locationModalTitle.textContent = event.title || 'Event Location';
+    }
+
+    if (locationModalAddress) {
+      locationModalAddress.innerHTML = buildAddressLabel(props);
+    }
+
+    if (locationModalNote) {
+      locationModalNote.hidden = false;
+      locationModalNote.textContent = 'Showing saved event coordinates.';
+    }
+
+    if (locationModalError) {
+      locationModalError.hidden = true;
+      locationModalError.textContent = '';
+    }
+
+    locationModal.hidden = false;
+
+    try {
+      await ensureMapboxAssets();
+      renderLocationMap(event);
+    } catch (error) {
+      if (locationModalError) {
+        locationModalError.hidden = false;
+        locationModalError.textContent = 'Unable to load the map for this event.';
+      }
+    }
+  }
+
   async function copyTextToClipboard(text) {
     if (typeof text !== 'string' || text.trim() === '') {
       return false;
@@ -117,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await navigator.clipboard.writeText(text);
         return true;
       } catch (error) {
-        // Fall through to legacy copy.
+        // fall through
       }
     }
 
@@ -221,8 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const isCanceled = !!props.isCanceled;
     const safeExternalUrl = getSafeExternalUrl(props.externalUrl);
     const safeShareUrl = buildEventShareUrl(event);
+    const hasLocationMap = eventHasUsableCoordinates(event) && mapboxPublicToken !== '';
 
     activeEventForShare = event;
+    activeEventForLocation = event;
     clearShareStatus();
 
     if (modalTitle) {
@@ -337,6 +592,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    if (modalLocationButtonWrap && modalLocationButton) {
+      if (hasLocationMap) {
+        modalLocationButtonWrap.hidden = false;
+        modalLocationButton.disabled = false;
+      } else {
+        modalLocationButtonWrap.hidden = true;
+        modalLocationButton.disabled = true;
+      }
+    }
+
     if (modal) modal.hidden = false;
   }
 
@@ -355,8 +620,34 @@ document.addEventListener('DOMContentLoaded', () => {
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
   if (backdrop) backdrop.addEventListener('click', closeModal);
 
+  if (locationCloseBtn) locationCloseBtn.addEventListener('click', closeLocationModal);
+  if (locationBackdrop) locationBackdrop.addEventListener('click', closeLocationModal);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') {
+      return;
+    }
+
+    if (!locationModal.hidden) {
+      closeLocationModal();
+      return;
+    }
+
+    if (!modal.hidden) {
+      closeModal();
+    }
+  });
+
   if (modalShareButton) {
     modalShareButton.addEventListener('click', handleShareClick);
+  }
+
+  if (modalLocationButton) {
+    modalLocationButton.addEventListener('click', () => {
+      if (activeEventForLocation) {
+        openLocationModal(activeEventForLocation);
+      }
+    });
   }
 
   const params = new URLSearchParams(window.location.search);
@@ -389,6 +680,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (data.meta && data.meta.app_version) {
             injectPoweredBy(data.meta.app_version);
+          }
+
+          if (data.meta && typeof data.meta.mapbox_public_token === 'string') {
+            mapboxPublicToken = data.meta.mapbox_public_token.trim();
           }
 
           successCallback(data.events || []);
@@ -528,29 +823,6 @@ function injectPoweredBy(version) {
   el.textContent = `Powered by Event Forge v${version}`;
 }
 
-function getSafeExternalUrl(value) {
-  if (typeof value !== 'string') {
-    return '';
-  }
-
-  const trimmed = value.trim();
-  if (trimmed === '') {
-    return '';
-  }
-
-  try {
-    const parsed = new URL(trimmed, window.location.origin);
-
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return '';
-    }
-
-    return parsed.href;
-  } catch (error) {
-    return '';
-  }
-}
-
 function ensureEventModal() {
   let modal = document.getElementById('event-modal');
 
@@ -618,6 +890,24 @@ function ensureEventModal() {
             </a>
           </p>
 
+          <p id="modal-location-button-wrap" hidden>
+            <button id="modal-location-button" class="event-modal-action-button event-modal-action-tile" type="button">
+              <svg
+                class="event-modal-action-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M12 2.5c-3.31 0-6 2.58-6 5.76 0 4.39 5.11 10.4 5.33 10.65a.86.86 0 0 0 1.34 0c.22-.25 5.33-6.26 5.33-10.65 0-3.18-2.69-5.76-6-5.76Zm0 8.1c-1.33 0-2.4-1.03-2.4-2.3S10.67 6 12 6s2.4 1.03 2.4 2.3-1.07 2.3-2.4 2.3Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span class="event-modal-action-label">View Location</span>
+            </button>
+          </p>
+
           <p id="modal-share-wrap" hidden>
             <button id="modal-share-button" class="event-modal-action-button event-modal-action-tile" type="button">
               <svg
@@ -645,4 +935,35 @@ function ensureEventModal() {
   document.body.appendChild(wrapper.firstElementChild);
 
   return document.getElementById('event-modal');
+}
+
+function ensureLocationModal() {
+  let modal = document.getElementById('event-location-modal');
+
+  if (modal) return modal;
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div id="event-location-modal" class="event-modal event-modal--secondary" hidden>
+      <div class="event-modal-backdrop"></div>
+
+      <div class="event-modal-panel location-modal-panel">
+        <button class="event-modal-close" type="button" aria-label="Close event location">×</button>
+
+        <h3 id="location-modal-title">Event Location</h3>
+        <p id="location-modal-address" class="location-modal-address"></p>
+
+        <div class="location-map-frame">
+          <div id="location-map"></div>
+        </div>
+
+        <p id="location-modal-note" class="location-modal-note" hidden></p>
+        <p id="location-modal-error" class="location-modal-error" hidden></p>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(wrapper.firstElementChild);
+
+  return document.getElementById('event-location-modal');
 }

@@ -22,6 +22,7 @@ $keepCurrentMonth = true;
 
 $appVersion = eventforge_get_system_value($connection, 'app_version') ?? '';
 $calendarTheme = eventforge_get_calendar_theme($connection);
+$mapboxPublicToken = trim((string) (eventforge_get_system_value($connection, 'mapbox_public_token') ?? ''));
 
 $sql = "
     SELECT
@@ -32,6 +33,13 @@ $sql = "
         e.end_datetime,
         e.all_day,
         e.location,
+        e.address_line_1,
+        e.address_line_2,
+        e.address_city,
+        e.address_state,
+        e.address_postal_code,
+        e.latitude,
+        e.longitude,
         e.summary,
         e.description,
         e.image_path,
@@ -81,6 +89,13 @@ while ($row = mysqli_fetch_assoc($result)) {
         'url' => eventforge_public_path('event.php') . '?id=' . (int) $row['id'] . (!empty($row['slug']) ? '&slug=' . urlencode((string) $row['slug']) : ''),
         'extendedProps' => [
             'location' => $row['location'] ?? '',
+            'addressLine1' => $row['address_line_1'] ?? '',
+            'addressLine2' => $row['address_line_2'] ?? '',
+            'addressCity' => $row['address_city'] ?? '',
+            'addressState' => $row['address_state'] ?? '',
+            'addressPostalCode' => $row['address_postal_code'] ?? '',
+            'latitude' => $row['latitude'] !== null ? (float) $row['latitude'] : null,
+            'longitude' => $row['longitude'] !== null ? (float) $row['longitude'] : null,
             'summary' => $row['summary'] ?? '',
             'description' => $row['description'] ?? '',
             'image' => $row['image_path'] ?? '',
@@ -101,6 +116,7 @@ echo json_encode([
         'app_version' => $appVersion,
         'calendar_theme' => $calendarTheme,
         'calendar_theme_css_variables' => eventforge_calendar_theme_to_css_variables($calendarTheme),
+        'mapbox_public_token' => $mapboxPublicToken,
     ],
 ], JSON_UNESCAPED_SLASHES);
 

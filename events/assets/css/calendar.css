@@ -13,6 +13,10 @@
   pointer-events: none !important;
 }
 
+.event-modal--secondary {
+  z-index: 10010;
+}
+
 .event-modal-backdrop {
   position: absolute;
   inset: 0;
@@ -62,7 +66,8 @@
   cursor: pointer;
 }
 
-#modal-title {
+#modal-title,
+#location-modal-title {
   margin: 0 2rem 0.75rem 0;
   color: var(--ef-calendar-accent-color, #f3be11) !important;
 }
@@ -171,6 +176,46 @@
 
 .event-modal-share-status.is-error {
   color: #ffd6d6 !important;
+}
+
+.location-modal-panel {
+  width: min(92vw, 860px);
+}
+
+.location-modal-address {
+  margin: 0 0 1rem;
+  color: rgba(255, 255, 255, 0.9) !important;
+  line-height: 1.5;
+}
+
+.location-map-frame {
+  width: 100%;
+  height: 420px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ef-calendar-border-color, #d7dde5) !important;
+}
+
+#location-map {
+  width: 100%;
+  height: 100%;
+}
+
+.location-modal-note {
+  margin-top: 0.9rem;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.location-modal-error {
+  margin-top: 0.9rem;
+  font-size: 0.95rem;
+  color: #ffd6d6 !important;
+}
+
+#location-map .mapboxgl-canvas {
+  outline: none;
 }
 
 /* calendar */

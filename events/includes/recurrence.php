@@ -365,6 +365,11 @@ function eventforge_insert_child_event(mysqli $connection, array $parent, string
 {
     $title = mysqli_real_escape_string($connection, (string) $parent['title']);
     $location = mysqli_real_escape_string($connection, (string) ($parent['location'] ?? ''));
+    $addressLine1 = mysqli_real_escape_string($connection, (string) ($parent['address_line_1'] ?? ''));
+    $addressLine2 = mysqli_real_escape_string($connection, (string) ($parent['address_line_2'] ?? ''));
+    $addressCity = mysqli_real_escape_string($connection, (string) ($parent['address_city'] ?? ''));
+    $addressState = mysqli_real_escape_string($connection, (string) ($parent['address_state'] ?? ''));
+    $addressPostalCode = mysqli_real_escape_string($connection, (string) ($parent['address_postal_code'] ?? ''));
     $summary = mysqli_real_escape_string($connection, (string) ($parent['summary'] ?? ''));
     $description = mysqli_real_escape_string($connection, (string) ($parent['description'] ?? ''));
     $imagePath = mysqli_real_escape_string($connection, (string) ($parent['image_path'] ?? ''));
@@ -372,6 +377,30 @@ function eventforge_insert_child_event(mysqli $connection, array $parent, string
     $externalUrl = mysqli_real_escape_string($connection, (string) ($parent['external_url'] ?? ''));
     $categoryId = !empty($parent['category_id']) ? (int) $parent['category_id'] : 0;
     $categorySql = $categoryId > 0 ? (string) $categoryId : 'NULL';
+
+    $latitudeSql = (
+        isset($parent['latitude'], $parent['longitude'])
+        && $parent['latitude'] !== null
+        && $parent['longitude'] !== null
+        && $parent['latitude'] !== ''
+        && $parent['longitude'] !== ''
+        && is_numeric($parent['latitude'])
+        && is_numeric($parent['longitude'])
+    )
+        ? number_format((float) $parent['latitude'], 7, '.', '')
+        : 'NULL';
+
+    $longitudeSql = (
+        isset($parent['latitude'], $parent['longitude'])
+        && $parent['latitude'] !== null
+        && $parent['longitude'] !== null
+        && $parent['latitude'] !== ''
+        && $parent['longitude'] !== ''
+        && is_numeric($parent['latitude'])
+        && is_numeric($parent['longitude'])
+    )
+        ? number_format((float) $parent['longitude'], 7, '.', '')
+        : 'NULL';
 
     $startTime = eventforge_parse_time_parts((string) $parent['start_datetime']);
     $startDatetime = eventforge_build_datetime($instanceDate, $startTime);
@@ -421,6 +450,13 @@ function eventforge_insert_child_event(mysqli $connection, array $parent, string
             end_datetime,
             all_day,
             location,
+            address_line_1,
+            address_line_2,
+            address_city,
+            address_state,
+            address_postal_code,
+            latitude,
+            longitude,
             summary,
             description,
             image_path,
@@ -436,6 +472,13 @@ function eventforge_insert_child_event(mysqli $connection, array $parent, string
             {$endSql},
             {$allDay},
             '{$location}',
+            '{$addressLine1}',
+            '{$addressLine2}',
+            '{$addressCity}',
+            '{$addressState}',
+            '{$addressPostalCode}',
+            {$latitudeSql},
+            {$longitudeSql},
             '{$summary}',
             '{$description}',
             {$imageSql},

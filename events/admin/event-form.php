@@ -58,6 +58,13 @@ $event = [
     'end_datetime' => '',
     'all_day' => 0,
     'location' => '',
+    'address_line_1' => '',
+    'address_line_2' => '',
+    'address_city' => '',
+    'address_state' => '',
+    'address_postal_code' => '',
+    'latitude' => '',
+    'longitude' => '',
     'summary' => '',
     'description' => '',
     'image_path' => '',
@@ -203,6 +210,16 @@ if (!empty($event['start_datetime'])) {
       font-weight: 400;
     }
 
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .field-grid .full {
+      grid-column: 1 / -1;
+    }
+
     hr {
       margin: 2rem 0;
       border: 0;
@@ -271,6 +288,26 @@ if (!empty($event['start_datetime'])) {
       font-size: 1rem;
       font-weight: 700;
     }
+
+    .location-status {
+      margin-top: 1rem;
+      padding: .85rem 1rem;
+      border-radius: 10px;
+      border: 1px solid #d7dde5;
+      background: #f8fafc;
+      color: #334155;
+      font-size: .95rem;
+    }
+
+    @media (max-width: 720px) {
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field-grid .full {
+        grid-column: auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -314,6 +351,51 @@ if (!empty($event['start_datetime'])) {
 
       <label for="location">Location</label>
       <input id="location" name="location" type="text" value="<?= htmlspecialchars((string) $event['location']) ?>">
+
+      <hr>
+
+      <h2>Address / Map Location</h2>
+      <p class="note">
+        Enter a usable address to geocode and save latitude/longitude when this event is created or updated. Public map display will use the saved coordinates later.
+      </p>
+
+      <div class="field-grid">
+        <div class="full">
+          <label for="address_line_1">Address Line 1</label>
+          <input id="address_line_1" name="address_line_1" type="text" value="<?= htmlspecialchars((string) $event['address_line_1']) ?>">
+        </div>
+
+        <div class="full">
+          <label for="address_line_2">Address Line 2</label>
+          <input id="address_line_2" name="address_line_2" type="text" value="<?= htmlspecialchars((string) $event['address_line_2']) ?>">
+        </div>
+
+        <div>
+          <label for="address_city">City</label>
+          <input id="address_city" name="address_city" type="text" value="<?= htmlspecialchars((string) $event['address_city']) ?>">
+        </div>
+
+        <div>
+          <label for="address_state">State</label>
+          <input id="address_state" name="address_state" type="text" value="<?= htmlspecialchars((string) $event['address_state']) ?>">
+        </div>
+
+        <div>
+          <label for="address_postal_code">Postal Code</label>
+          <input id="address_postal_code" name="address_postal_code" type="text" value="<?= htmlspecialchars((string) $event['address_postal_code']) ?>">
+        </div>
+      </div>
+
+      <?php if ($event['latitude'] !== '' && $event['longitude'] !== ''): ?>
+        <div class="location-status">
+          <strong>Saved Coordinates:</strong>
+          <?= htmlspecialchars((string) $event['latitude']) ?>, <?= htmlspecialchars((string) $event['longitude']) ?>
+        </div>
+      <?php else: ?>
+        <div class="location-status">
+          No saved coordinates yet.
+        </div>
+      <?php endif; ?>
 
       <label for="category_id">Category</label>
       <select id="category_id" name="category_id">

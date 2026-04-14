@@ -20,6 +20,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit('Method not allowed.');
 }
 
+$settingsGroup = trim((string) ($_POST['settings_group'] ?? ''));
+
+if ($settingsGroup === 'map-settings') {
+    $mapboxPublicToken = trim((string) ($_POST['mapbox_public_token'] ?? ''));
+    $mapboxGeocodingToken = trim((string) ($_POST['mapbox_geocoding_token'] ?? ''));
+
+    if (!eventforge_set_system_value($connection, 'mapbox_public_token', $mapboxPublicToken)) {
+        exit('Failed to save public token.');
+    }
+
+    if (!eventforge_set_system_value($connection, 'mapbox_geocoding_token', $mapboxGeocodingToken)) {
+        exit('Failed to save geocoding token.');
+    }
+
+    header('Location: ' . eventforge_admin_path('settings.php') . '?status=map-saved');
+    exit;
+}
+
 $settingKey = trim($_POST['setting_key'] ?? '');
 $settingValue = trim((string) ($_POST['setting_value'] ?? ''));
 

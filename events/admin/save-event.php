@@ -11,6 +11,7 @@ if (!eventforge_is_installed()) {
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/location.php';
 require_once __DIR__ . '/../includes/recurrence.php';
 
 require_login();
@@ -26,6 +27,7 @@ $summary = trim($_POST['summary'] ?? '');
 $description = trim($_POST['description'] ?? '');
 $externalUrl = trim($_POST['external_url'] ?? '');
 $isPublished = isset($_POST['is_published']) ? 1 : 0;
+$address = eventforge_normalize_address_input($_POST);
 
 $categoryId = isset($_POST['category_id']) && $_POST['category_id'] !== ''
     ? (int) $_POST['category_id']
@@ -41,6 +43,9 @@ $recurrenceNormalized = eventforge_normalize_recurrence_input(
         'is_recurring_parent' => $_POST['is_recurring_parent'] ?? '0',
         'recurrence_type' => $_POST['recurrence_type'] ?? '',
         'annual_mode' => $_POST['annual_mode'] ?? 'date',
+        'annual_pattern_mode' => $_POST['annual_pattern_mode'] ?? 'same_date',
+        'annual_recurrence_week_of_month' => $_POST['annual_recurrence_week_of_month'] ?? '',
+        'annual_recurrence_day_of_week' => $_POST['annual_recurrence_day_of_week'] ?? '',
         'recurrence_interval' => $_POST['recurrence_interval'] ?? 1,
         'recurrence_days' => $_POST['recurrence_days'] ?? [],
         'recurrence_week_of_month' => $_POST['recurrence_week_of_month'] ?? '',
@@ -78,6 +83,12 @@ $summaryEsc = mysqli_real_escape_string($connection, $summary);
 $descriptionEsc = mysqli_real_escape_string($connection, $description);
 $externalUrlEsc = mysqli_real_escape_string($connection, $externalUrl);
 
+$addressLine1Esc = mysqli_real_escape_string($connection, $address['address_line_1']);
+$addressLine2Esc = mysqli_real_escape_string($connection, $address['address_line_2']);
+$addressCityEsc = mysqli_real_escape_string($connection, $address['address_city']);
+$addressStateEsc = mysqli_real_escape_string($connection, $address['address_state']);
+$addressPostalCodeEsc = mysqli_real_escape_string($connection, $address['address_postal_code']);
+
 $recurrenceTypeEsc = mysqli_real_escape_string($connection, $recurrenceType);
 $recurrenceDaysEsc = mysqli_real_escape_string($connection, $recurrenceDays);
 $recurrenceWeekOfMonthEsc = mysqli_real_escape_string($connection, $recurrenceWeekOfMonth);
@@ -90,6 +101,64 @@ $recurrenceWeekOfMonthSql = $recurrenceWeekOfMonth !== '' ? "'{$recurrenceWeekOf
 $recurrenceDayOfWeekSql = $recurrenceDayOfWeek !== '' ? "'{$recurrenceDayOfWeekEsc}'" : 'NULL';
 $recurrenceEndDateSql = $recurrenceEndDate !== ''
     ? "'" . mysqli_real_escape_string($connection, $recurrenceEndDate) . "'"
+    : 'NULL';
+
+$existingEvent = null;
+$existingAddressSignature = '';
+$existingLatitude = null;
+$existingLongitude = null;
+
+if ($id > 0) {
+    $existingResult = mysqli_query($connection, "
+        SELECT
+            id,
+            address_line_1,
+            address_line_2,
+            address_city,
+            address_state,
+            address_postal_code,
+            latitude,
+            longitude
+        FROM events
+        WHERE id = {$id}
+        LIMIT 1
+    ");
+
+    if ($existingResult && ($existingRow = mysqli_fetch_assoc($existingResult))) {
+        $existingEvent = $existingRow;
+        $existingAddressSignature = eventforge_address_signature($existingRow);
+        $existingLatitude = $existingRow['latitude'];
+        $existingLongitude = $existingRow['longitude'];
+    }
+}
+
+$currentAddressSignature = eventforge_address_signature($address);
+$addressChanged = $existingEvent === null || $currentAddressSignature !== $existingAddressSignature;
+
+$latitude = null;
+$longitude = null;
+
+if (eventforge_has_usable_address($address)) {
+    if (!$addressChanged && eventforge_coordinates_are_valid($existingLatitude, $existingLongitude)) {
+        $latitude = round((float) $existingLatitude, 7);
+        $longitude = round((float) $existingLongitude, 7);
+    } else {
+        $geocodingToken = eventforge_get_mapbox_geocoding_token($connection);
+        $query = eventforge_build_geocoding_query($location, $address);
+        $geocoded = eventforge_geocode_with_mapbox($geocodingToken, $query);
+
+        if (is_array($geocoded)) {
+            $latitude = $geocoded['latitude'];
+            $longitude = $geocoded['longitude'];
+        }
+    }
+}
+
+$latitudeSql = eventforge_coordinates_are_valid($latitude, $longitude)
+    ? number_format((float) $latitude, 7, '.', '')
+    : 'NULL';
+$longitudeSql = eventforge_coordinates_are_valid($latitude, $longitude)
+    ? number_format((float) $longitude, 7, '.', '')
     : 'NULL';
 
 $imageSqlPart = '';
@@ -133,6 +202,13 @@ if ($id > 0) {
             end_datetime = {$endEsc},
             all_day = {$allDay},
             location = '{$locationEsc}',
+            address_line_1 = '{$addressLine1Esc}',
+            address_line_2 = '{$addressLine2Esc}',
+            address_city = '{$addressCityEsc}',
+            address_state = '{$addressStateEsc}',
+            address_postal_code = '{$addressPostalCodeEsc}',
+            latitude = {$latitudeSql},
+            longitude = {$longitudeSql},
             summary = '{$summaryEsc}',
             description = '{$descriptionEsc}',
             external_url = '{$externalUrlEsc}',
@@ -173,6 +249,13 @@ if ($id > 0) {
             end_datetime,
             all_day,
             location,
+            address_line_1,
+            address_line_2,
+            address_city,
+            address_state,
+            address_postal_code,
+            latitude,
+            longitude,
             summary,
             description,
             image_path,
@@ -194,6 +277,13 @@ if ($id > 0) {
             {$endEsc},
             {$allDay},
             '{$locationEsc}',
+            '{$addressLine1Esc}',
+            '{$addressLine2Esc}',
+            '{$addressCityEsc}',
+            '{$addressStateEsc}',
+            '{$addressPostalCodeEsc}',
+            {$latitudeSql},
+            {$longitudeSql},
             '{$summaryEsc}',
             '{$descriptionEsc}',
             {$imageInsert},

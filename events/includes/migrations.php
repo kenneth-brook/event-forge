@@ -189,6 +189,42 @@ function eventforge_get_migrations(): array
                 }
             }
         },
+
+        7 => function (mysqli $connection): void {
+            $columns = [
+                'address_line_1' => "ALTER TABLE events ADD COLUMN address_line_1 VARCHAR(255) DEFAULT NULL AFTER location",
+                'address_line_2' => "ALTER TABLE events ADD COLUMN address_line_2 VARCHAR(255) DEFAULT NULL AFTER address_line_1",
+                'address_city' => "ALTER TABLE events ADD COLUMN address_city VARCHAR(120) DEFAULT NULL AFTER address_line_2",
+                'address_state' => "ALTER TABLE events ADD COLUMN address_state VARCHAR(120) DEFAULT NULL AFTER address_city",
+                'address_postal_code' => "ALTER TABLE events ADD COLUMN address_postal_code VARCHAR(32) DEFAULT NULL AFTER address_state",
+                'latitude' => "ALTER TABLE events ADD COLUMN latitude DECIMAL(10,7) DEFAULT NULL AFTER address_postal_code",
+                'longitude' => "ALTER TABLE events ADD COLUMN longitude DECIMAL(10,7) DEFAULT NULL AFTER latitude",
+            ];
+
+            foreach ($columns as $column => $sql) {
+                if (!eventforge_column_exists($connection, 'events', $column)) {
+                    if (!mysqli_query($connection, $sql)) {
+                        throw new RuntimeException('Failed adding events.' . $column . ': ' . mysqli_error($connection));
+                    }
+                }
+            }
+
+            $indexCheckSql = "
+                SELECT 1
+                FROM information_schema.statistics
+                WHERE table_schema = DATABASE()
+                  AND table_name = 'events'
+                  AND index_name = 'idx_events_lat_lng'
+                LIMIT 1
+            ";
+            $indexCheckResult = mysqli_query($connection, $indexCheckSql);
+
+            if (!$indexCheckResult || mysqli_num_rows($indexCheckResult) === 0) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_lat_lng (latitude, longitude)")) {
+                    throw new RuntimeException('Failed adding idx_events_lat_lng: ' . mysqli_error($connection));
+                }
+            }
+        },
     ];
 }
 

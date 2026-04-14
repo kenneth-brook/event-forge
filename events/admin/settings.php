@@ -64,6 +64,8 @@ if (!$categoryResult) {
 }
 
 $publicCalendarUrl = eventforge_get_system_value($connection, 'public_calendar_url') ?? '';
+$mapboxPublicToken = eventforge_get_system_value($connection, 'mapbox_public_token') ?? '';
+$mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocoding_token') ?? '';
 ?>
 <!doctype html>
 <html lang="en">
@@ -324,6 +326,8 @@ $publicCalendarUrl = eventforge_get_system_value($connection, 'public_calendar_u
       <div class="notice">Calendar theme permission setting saved.</div>
     <?php elseif ($status === 'theme-saved'): ?>
       <div class="notice">Calendar theme saved.</div>
+    <?php elseif ($status === 'map-saved'): ?>
+      <div class="notice">Map settings saved.</div>
     <?php endif; ?>
 
     <div class="settings-section">
@@ -697,6 +701,46 @@ $publicCalendarUrl = eventforge_get_system_value($connection, 'public_calendar_u
       <?php else: ?>
         <p class="note">
           Additional administrative configuration options are available to your administrator.
+        </p>
+      <?php endif; ?>
+    </div>
+
+    <div class="settings-section">
+      <h2>Map Location</h2>
+
+      <?php if (is_admin()): ?>
+        <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-system-setting.php')) ?>">
+          <input type="hidden" name="settings_group" value="map-settings">
+
+          <label for="mapbox_public_token">Mapbox Public Token</label>
+          <input
+            id="mapbox_public_token"
+            name="mapbox_public_token"
+            type="text"
+            value="<?= htmlspecialchars($mapboxPublicToken) ?>"
+            autocomplete="off"
+          >
+
+          <label for="mapbox_geocoding_token">Mapbox Geocoding Token</label>
+          <input
+            id="mapbox_geocoding_token"
+            name="mapbox_geocoding_token"
+            type="password"
+            value="<?= htmlspecialchars($mapboxGeocodingToken) ?>"
+            autocomplete="new-password"
+          >
+
+          <p class="note">
+            The public token is used in the browser for the map display. The geocoding token is used server-side only when an event is saved with a usable address.
+          </p>
+
+          <div class="form-actions">
+            <button type="submit">Save Map Settings</button>
+          </div>
+        </form>
+      <?php else: ?>
+        <p class="note">
+          Map and geocoding credentials can be managed by administrators.
         </p>
       <?php endif; ?>
     </div>
