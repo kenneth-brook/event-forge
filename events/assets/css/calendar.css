@@ -268,6 +268,11 @@
   width: auto;
 }
 
+#calendar .fc-list-event-time,
+#resident-calendar .fc-list-event-time {
+  display: none !important;
+}
+
 #calendar .fc-list-event:hover td,
 #resident-calendar .fc-list-event:hover td {
   background-color: var(--ef-calendar-hover-background-color, #167151) !important;
@@ -284,6 +289,62 @@
   cursor: pointer;
 }
 
+/* Custom public event layout */
+
+#calendar .fc-event-main,
+#resident-calendar .fc-event-main {
+  width: 100%;
+}
+
+#calendar .eventforge-calendar-event,
+#resident-calendar .eventforge-calendar-event {
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  line-height: 1.2;
+}
+
+#calendar .eventforge-calendar-event__title,
+#resident-calendar .eventforge-calendar-event__title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  color: inherit;
+}
+
+#calendar .eventforge-calendar-event__time,
+#resident-calendar .eventforge-calendar-event__time {
+  display: block;
+  margin-top: 0.12rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  opacity: 0.9;
+  color: inherit;
+}
+
+#calendar .fc-list-event .eventforge-calendar-event__title,
+#resident-calendar .fc-list-event .eventforge-calendar-event__title {
+  white-space: normal;
+}
+
+#calendar .fc-list-event .eventforge-calendar-event__time,
+#resident-calendar .fc-list-event .eventforge-calendar-event__time {
+  white-space: normal;
+  font-size: 0.85rem;
+}
+
+#calendar .fc-timegrid-event .eventforge-calendar-event__title,
+#resident-calendar .fc-timegrid-event .eventforge-calendar-event__title,
+#calendar .fc-timegrid-event .eventforge-calendar-event__time,
+#resident-calendar .fc-timegrid-event .eventforge-calendar-event__time {
+  white-space: normal;
+}
+
 /* Base canceled appearance */
 .event-canceled {
   position: relative;
@@ -292,6 +353,8 @@
 /* Strike through only the title text */
 #calendar .event-canceled .fc-event-title,
 #resident-calendar .event-canceled .fc-event-title,
+#calendar .event-canceled .eventforge-calendar-event__title,
+#resident-calendar .event-canceled .eventforge-calendar-event__title,
 #calendar .fc-list-event.event-canceled .fc-list-event-title a,
 #resident-calendar .fc-list-event.event-canceled .fc-list-event-title a {
   text-decoration: line-through;
@@ -416,6 +479,8 @@
 #calendar .fc-list-event-time,
 #calendar .fc-event-title,
 #calendar .fc-event-time,
+#calendar .eventforge-calendar-event__title,
+#calendar .eventforge-calendar-event__time,
 #resident-calendar,
 #resident-calendar .fc,
 #resident-calendar .fc a,
@@ -423,7 +488,9 @@
 #resident-calendar .fc-list-event-title a,
 #resident-calendar .fc-list-event-time,
 #resident-calendar .fc-event-title,
-#resident-calendar .fc-event-time {
+#resident-calendar .fc-event-time,
+#resident-calendar .eventforge-calendar-event__title,
+#resident-calendar .eventforge-calendar-event__time {
   color: var(--ef-calendar-text-color, #1f2937) !important;
 }
 

@@ -217,6 +217,62 @@ document.addEventListener('DOMContentLoaded', () => {
       && lng <= 180;
   }
 
+  function formatCalendarEventTime(event) {
+    if (!event || !event.start || event.allDay) {
+      return '';
+    }
+
+    const timeOptions = {
+      hour: 'numeric',
+      minute: '2-digit'
+    };
+
+    const startTime = event.start.toLocaleTimeString(undefined, timeOptions);
+
+    if (!event.end || event.end.getTime() <= event.start.getTime()) {
+      return startTime;
+    }
+
+    const endTime = event.end.toLocaleTimeString(undefined, timeOptions);
+    const sameDay = event.start.toDateString() === event.end.toDateString();
+
+    if (sameDay) {
+      return `${startTime} - ${endTime}`;
+    }
+
+    const endDate = event.end.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric'
+    });
+
+    return `${startTime} - ${endDate} ${endTime}`;
+  }
+
+  function renderCalendarEventContent(info) {
+    const event = info.event;
+    const wrapper = document.createElement('div');
+    const title = document.createElement('div');
+    const timeText = formatCalendarEventTime(event);
+
+    wrapper.className = 'eventforge-calendar-event';
+
+    title.className = 'eventforge-calendar-event__title';
+    title.textContent = event.title || '';
+
+    wrapper.appendChild(title);
+
+    if (timeText !== '') {
+      const time = document.createElement('div');
+      time.className = 'eventforge-calendar-event__time';
+      time.textContent = timeText;
+      wrapper.appendChild(time);
+    }
+
+    return {
+      domNodes: [wrapper]
+    };
+  }
+
   function ensureMapboxAssets() {
     if (window.mapboxgl) {
       return Promise.resolve();
@@ -698,8 +754,10 @@ document.addEventListener('DOMContentLoaded', () => {
       minute: '2-digit',
       meridiem: 'short'
     },
+    displayEventTime: false,
     dayMaxEvents: true,
     eventDisplay: 'block',
+    eventContent: renderCalendarEventContent,
 
     eventDidMount(info) {
       const props = info.event.extendedProps || {};
@@ -720,7 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
         info.el.style.color = categoryFontColor;
 
         const textNodes = info.el.querySelectorAll(
-          '.fc-event-title, .fc-event-time, .fc-list-event-title a, .fc-list-event-time'
+          '.fc-event-title, .fc-event-time, .fc-list-event-title a, .fc-list-event-time, .eventforge-calendar-event__title, .eventforge-calendar-event__time'
         );
 
         textNodes.forEach((node) => {
