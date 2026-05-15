@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalExternalWrap = document.getElementById('modal-external-wrap');
   const modalExternal = document.getElementById('modal-external');
 
+  const modalCalendarWrap = document.getElementById('modal-calendar-wrap');
+  const modalCalendar = document.getElementById('modal-calendar');
+
   const modalShareWrap = document.getElementById('modal-share-wrap');
   const modalShareButton = document.getElementById('modal-share-button');
   const modalShareStatus = document.getElementById('modal-share-status');
@@ -106,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalImage) modalImage.removeAttribute('src');
     if (modalPdf) modalPdf.removeAttribute('href');
     if (modalExternal) modalExternal.removeAttribute('href');
+    if (modalCalendar) modalCalendar.removeAttribute('href');
 
     activeEventForShare = null;
     activeEventForLocation = null;
@@ -162,6 +166,16 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
       return '';
     }
+  }
+
+  function buildEventIcsUrl(event) {
+    if (!event || !event.id) {
+      return '';
+    }
+
+    const eventId = encodeURIComponent(String(event.id));
+
+    return `/event-forge/events/ics.php?id=${eventId}`;
   }
 
   function buildAddressLabel(props) {
@@ -530,6 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const isCanceled = !!props.isCanceled;
     const safeExternalUrl = getSafeExternalUrl(props.externalUrl);
     const safeShareUrl = buildEventShareUrl(event);
+    const safeCalendarUrl = buildEventIcsUrl(event);
     const hasLocationMap = eventHasUsableCoordinates(event) && mapboxPublicToken !== '';
 
     activeEventForShare = event;
@@ -635,6 +650,16 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         modalExternal.removeAttribute('href');
         modalExternalWrap.hidden = true;
+      }
+    }
+
+    if (modalCalendarWrap && modalCalendar) {
+      if (safeCalendarUrl) {
+        modalCalendar.href = safeCalendarUrl;
+        modalCalendarWrap.hidden = false;
+      } else {
+        modalCalendar.removeAttribute('href');
+        modalCalendarWrap.hidden = true;
       }
     }
 
@@ -945,6 +970,24 @@ function ensureEventModal() {
                 />
               </svg>
               <span class="event-modal-action-label">More Info</span>
+            </a>
+          </p>
+
+          <p id="modal-calendar-wrap" hidden>
+            <a id="modal-calendar" class="event-modal-action-link event-modal-action-tile" href="#" target="_blank" rel="noopener">
+              <svg
+                class="event-modal-action-icon"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M7.25 2.75a.75.75 0 0 1 .75.75V5h8V3.5a.75.75 0 0 1 1.5 0V5h1.25A2.25 2.25 0 0 1 21 7.25v10.5A2.25 2.25 0 0 1 18.75 20H5.25A2.25 2.25 0 0 1 3 17.75V7.25A2.25 2.25 0 0 1 5.25 5H6.5V3.5a.75.75 0 0 1 .75-.75ZM4.5 9v8.75c0 .41.34.75.75.75h13.5c.41 0 .75-.34.75-.75V9h-15Zm3.75 3h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1 0-1.5Zm0 3h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span class="event-modal-action-label">Add to Calendar</span>
             </a>
           </p>
 
