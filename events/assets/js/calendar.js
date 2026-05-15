@@ -56,6 +56,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let mapboxAssetsRequested = false;
   let mapboxAssetsPromise = null;
 
+  const mobileCalendarQuery = window.matchMedia('(max-width: 768px)');
+
+  function getCalendarHeaderToolbar() {
+    return {
+      left: 'prev,next today',
+      center: 'title',
+      right: mobileCalendarQuery.matches
+        ? 'dayGridMonth,timeGridDay,listMonth'
+        : 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+    };
+  }
+
   const clearShareStatus = () => {
     if (shareStatusTimeout) {
       window.clearTimeout(shareStatusTimeout);
@@ -740,11 +752,7 @@ document.addEventListener('DOMContentLoaded', () => {
     height: 'auto',
     fixedWeekCount: false,
     showNonCurrentDates: false,
-    headerToolbar: {
-      left: 'prev,next today',
-      center: 'title',
-      right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
-    },
+    headerToolbar: getCalendarHeaderToolbar(),
     buttonText: {
       dayGridMonth: 'Month',
       timeGridWeek: 'Week',
@@ -841,6 +849,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   calendar.render();
+
+  if (typeof mobileCalendarQuery.addEventListener === 'function') {
+    mobileCalendarQuery.addEventListener('change', () => {
+      calendar.setOption('headerToolbar', getCalendarHeaderToolbar());
+
+      if (mobileCalendarQuery.matches && calendar.view.type === 'timeGridWeek') {
+        calendar.changeView('dayGridMonth');
+      }
+    });
+  } else if (typeof mobileCalendarQuery.addListener === 'function') {
+    mobileCalendarQuery.addListener(() => {
+      calendar.setOption('headerToolbar', getCalendarHeaderToolbar());
+
+      if (mobileCalendarQuery.matches && calendar.view.type === 'timeGridWeek') {
+        calendar.changeView('dayGridMonth');
+      }
+    });
+  }
 
   ensureCalendarFooter(calendarEl);
 
