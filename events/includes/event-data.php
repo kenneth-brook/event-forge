@@ -1,0 +1,176 @@
+<?php
+declare(strict_types=1);
+
+require_once __DIR__ . '/installer.php';
+require_once __DIR__ . '/system.php';
+require_once __DIR__ . '/functions.php';
+
+function eventforge_event_select_sql(): string
+{
+    return "
+        SELECT
+            e.id,
+            e.title,
+            e.slug,
+            e.start_datetime,
+            e.end_datetime,
+            e.all_day,
+            e.location,
+            e.address_line_1,
+            e.address_line_2,
+            e.address_city,
+            e.address_state,
+            e.address_postal_code,
+            e.latitude,
+            e.longitude,
+            e.summary,
+            e.description,
+            e.image_path,
+            e.pdf_path,
+            e.external_url,
+            e.is_canceled,
+            e.category_id,
+            c.name AS category_name,
+            c.color AS category_color,
+            c.font_color AS category_font_color
+        FROM events e
+        LEFT JOIN event_categories c ON e.category_id = c.id
+    ";
+}
+
+function eventforge_build_event_detail_url(int $eventId, ?string $slug = null): string
+{
+    $url = eventforge_public_path('event.php') . '?id=' . $eventId;
+
+    if ($slug !== null && trim($slug) !== '') {
+        $url .= '&slug=' . urlencode($slug);
+    }
+
+    return $url;
+}
+
+function eventforge_build_event_view_url(mysqli $connection, int $eventId, ?string $slug = null): string
+{
+    $calendarUrl = eventforge_build_public_event_url($connection, $eventId, $slug);
+
+    if ($calendarUrl !== '') {
+        return $calendarUrl;
+    }
+
+    return eventforge_build_event_detail_url($eventId, $slug);
+}
+
+function eventforge_normalize_event_row(mysqli $connection, array $row): array
+{
+    $eventId = (int) $row['id'];
+    $slug = !empty($row['slug']) ? (string) $row['slug'] : null;
+    $detailUrl = eventforge_build_event_detail_url($eventId, $slug);
+    $viewUrl = eventforge_build_event_view_url($connection, $eventId, $slug);
+
+    return [
+        'id' => $eventId,
+        'title' => (string) $row['title'],
+        'start' => (string) $row['start_datetime'],
+        'end' => !empty($row['end_datetime']) ? (string) $row['end_datetime'] : null,
+        'allDay' => (bool) $row['all_day'],
+        'url' => $detailUrl,
+        'viewUrl' => $viewUrl,
+        'extendedProps' => [
+            'location' => $row['location'] ?? '',
+            'addressLine1' => $row['address_line_1'] ?? '',
+            'addressLine2' => $row['address_line_2'] ?? '',
+            'addressCity' => $row['address_city'] ?? '',
+            'addressState' => $row['address_state'] ?? '',
+            'addressPostalCode' => $row['address_postal_code'] ?? '',
+            'latitude' => $row['latitude'] !== null ? (float) $row['latitude'] : null,
+            'longitude' => $row['longitude'] !== null ? (float) $row['longitude'] : null,
+            'summary' => $row['summary'] ?? '',
+            'description' => $row['description'] ?? '',
+            'image' => $row['image_path'] ?? '',
+            'pdf' => $row['pdf_path'] ?? '',
+            'externalUrl' => $row['external_url'] ?? '',
+            'isCanceled' => (bool) ($row['is_canceled'] ?? 0),
+            'categoryId' => $row['category_id'] ?? '',
+            'categoryName' => $row['category_name'] ?? '',
+            'categoryColor' => $row['category_color'] ?? '',
+            'categoryFontColor' => $row['category_font_color'] ?? '',
+            'viewUrl' => $viewUrl,
+        ],
+    ];
+}
+
+function eventforge_fetch_public_calendar_events(
+    mysqli $connection,
+    bool $hidePastEvents = true,
+    bool $keepCurrentMonth = true
+): array {
+    $sql = eventforge_event_select_sql() . "
+        WHERE e.is_published = 1
+          AND (e.is_recurring_parent = 0 OR e.is_recurring_parent IS NULL)
+    ";
+
+    if ($hidePastEvents) {
+        if ($keepCurrentMonth) {
+            $sql .= " AND e.start_datetime >= DATE_FORMAT(CURDATE(), '%Y-%m-01')";
+        } else {
+            $sql .= " AND COALESCE(e.end_datetime, e.start_datetime) >= NOW()";
+        }
+    }
+
+    $sql .= " ORDER BY e.start_datetime ASC, e.id ASC";
+
+    $result = mysqli_query($connection, $sql);
+
+    if (!$result) {
+        throw new RuntimeException('Event query failed: ' . mysqli_error($connection));
+    }
+
+    $events = [];
+
+    while ($row = mysqli_fetch_assoc($result)) {
+        $events[] = eventforge_normalize_event_row($connection, $row);
+    }
+
+    mysqli_free_result($result);
+
+    return $events;
+}
+
+function eventforge_fetch_upcoming_events(
+    mysqli $connection,
+    int $limit = 20,
+    bool $includeCanceled = false
+): array {
+    $limit = max(1, min(100, $limit));
+
+    $sql = eventforge_event_select_sql() . "
+        WHERE e.is_published = 1
+          AND (e.is_recurring_parent = 0 OR e.is_recurring_parent IS NULL)
+          AND COALESCE(e.end_datetime, e.start_datetime) >= NOW()
+    ";
+
+    if (!$includeCanceled) {
+        $sql .= " AND e.is_canceled = 0";
+    }
+
+    $sql .= "
+        ORDER BY e.start_datetime ASC, e.id ASC
+        LIMIT {$limit}
+    ";
+
+    $result = mysqli_query($connection, $sql);
+
+    if (!$result) {
+        throw new RuntimeException('Upcoming event query failed: ' . mysqli_error($connection));
+    }
+
+    $events = [];
+
+    while ($row = mysqli_fetch_assoc($result)) {
+        $events[] = eventforge_normalize_event_row($connection, $row);
+    }
+
+    mysqli_free_result($result);
+
+    return $events;
+}

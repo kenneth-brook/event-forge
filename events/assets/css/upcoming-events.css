@@ -1,0 +1,172 @@
+/*
+  Event Forge Upcoming Events Component
+  v0.7.0
+
+  Designed for portable client-site embeds. Selectors are scoped to the
+  component root so host themes do not grab the wheel and drive into a pond.
+*/
+
+.eventforge-upcoming-events,
+.eventforge-upcoming-events * {
+  box-sizing: border-box !important;
+}
+
+.eventforge-upcoming-events {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 1rem !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  color: var(--ef-calendar-text-color, #1f2937) !important;
+  background: var(--ef-calendar-surface-color, #ffffff) !important;
+  border: 1px solid var(--ef-calendar-border-color, #d7dde5) !important;
+  border-radius: 12px !important;
+  isolation: isolate !important;
+}
+
+.eventforge-upcoming-events__heading {
+  display: block !important;
+  margin: 0 0 0.75rem !important;
+  padding: 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 1.25rem !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+  color: var(--ef-calendar-text-color, #1f2937) !important;
+}
+
+.eventforge-upcoming-events__status {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0.85rem !important;
+  color: var(--ef-calendar-text-color, #1f2937) !important;
+  background: rgba(0, 0, 0, 0.035) !important;
+  border-radius: 8px !important;
+  font-size: 0.95rem !important;
+  line-height: 1.4 !important;
+}
+
+.eventforge-upcoming-events__status[hidden] {
+  display: none !important;
+}
+
+.eventforge-upcoming-events__status.is-error {
+  color: #7f1d1d !important;
+  background: #fee2e2 !important;
+}
+
+.eventforge-upcoming-events__list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.75rem !important;
+  max-height: var(--ef-upcoming-max-height, 420px) !important;
+  overflow-y: auto !important;
+  padding: 0 0.25rem 0 0 !important;
+  margin: 0 !important;
+  scrollbar-width: thin !important;
+}
+
+.eventforge-upcoming-events__list[hidden] {
+  display: none !important;
+}
+
+.eventforge-upcoming-events__item {
+  display: block !important;
+  position: relative !important;
+  margin: 0 !important;
+  padding: 0.85rem 0.9rem 0.9rem 1rem !important;
+  background: #ffffff !important;
+  color: var(--ef-calendar-text-color, #1f2937) !important;
+  border: 1px solid var(--ef-calendar-border-color, #d7dde5) !important;
+  border-left: 0.35rem solid var(--ef-upcoming-category-color, var(--ef-calendar-today-highlight-color, #f3be11)) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07) !important;
+}
+
+.eventforge-upcoming-events__item.is-canceled {
+  opacity: 0.78 !important;
+}
+
+.eventforge-upcoming-events__item.is-canceled .eventforge-upcoming-events__title {
+  text-decoration: line-through !important;
+}
+
+.eventforge-upcoming-events__title {
+  display: block !important;
+  margin: 0 0 0.35rem !important;
+  padding: 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 1rem !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  color: var(--ef-upcoming-category-font-color, var(--ef-calendar-text-color, #1f2937)) !important;
+}
+
+.eventforge-upcoming-events__date,
+.eventforge-upcoming-events__location,
+.eventforge-upcoming-events__canceled {
+  display: block !important;
+  margin: 0.2rem 0 0 !important;
+  padding: 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 0.9rem !important;
+  line-height: 1.35 !important;
+  color: var(--ef-calendar-text-color, #1f2937) !important;
+}
+
+.eventforge-upcoming-events__location {
+  opacity: 0.85 !important;
+}
+
+.eventforge-upcoming-events__canceled {
+  display: inline-block !important;
+  margin-top: 0.45rem !important;
+  padding: 0.2rem 0.45rem !important;
+  color: #7f1d1d !important;
+  background: #fee2e2 !important;
+  border-radius: 999px !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+}
+
+.eventforge-upcoming-events__link {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  margin: 0.65rem 0 0 !important;
+  padding: 0.5rem 0.75rem !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 0.9rem !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  color: var(--ef-calendar-button-text-color, #111111) !important;
+  background: var(--ef-calendar-button-background-color, #ffffff) !important;
+  border: 1px solid var(--ef-calendar-border-color, #d7dde5) !important;
+  border-radius: 7px !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+}
+
+.eventforge-upcoming-events__link:hover,
+.eventforge-upcoming-events__link:focus {
+  filter: brightness(0.96) !important;
+  text-decoration: none !important;
+}
+
+@media (max-width: 640px) {
+  .eventforge-upcoming-events {
+    padding: 0.85rem !important;
+  }
+
+  .eventforge-upcoming-events__list {
+    max-height: var(--ef-upcoming-max-height, 360px) !important;
+  }
+
+  .eventforge-upcoming-events__item {
+    padding: 0.8rem 0.8rem 0.85rem 0.9rem !important;
+  }
+}

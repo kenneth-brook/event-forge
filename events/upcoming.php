@@ -18,23 +18,25 @@ require_once __DIR__ . '/includes/system.php';
 require_once __DIR__ . '/includes/theme.php';
 require_once __DIR__ . '/includes/event-data.php';
 
-$hidePastEvents = true;
-$keepCurrentMonth = true;
+$limit = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
+$limit = max(1, min(100, $limit));
+
+$includeCanceled = isset($_GET['include_canceled'])
+    && in_array(strtolower((string) $_GET['include_canceled']), ['1', 'true', 'yes'], true);
 
 $appVersion = eventforge_get_system_value($connection, 'app_version') ?? '';
 $calendarTheme = eventforge_get_calendar_theme($connection);
-$mapboxPublicToken = trim((string) (eventforge_get_system_value($connection, 'mapbox_public_token') ?? ''));
 
 try {
-    $events = eventforge_fetch_public_calendar_events(
+    $events = eventforge_fetch_upcoming_events(
         $connection,
-        $hidePastEvents,
-        $keepCurrentMonth
+        $limit,
+        $includeCanceled
     );
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode([
-        'error' => 'Query failed',
+        'error' => 'Upcoming event query failed',
         'details' => $e->getMessage(),
     ]);
     exit;
@@ -44,9 +46,9 @@ echo json_encode([
     'events' => $events,
     'meta' => [
         'app_version' => $appVersion,
-        'calendar_theme' => $calendarTheme,
         'calendar_theme_css_variables' => eventforge_calendar_theme_to_css_variables($calendarTheme),
-        'mapbox_public_token' => $mapboxPublicToken,
+        'limit' => $limit,
+        'include_canceled' => $includeCanceled,
     ],
 ], JSON_UNESCAPED_SLASHES);
 
