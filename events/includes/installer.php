@@ -195,6 +195,17 @@ function eventforge_run_initial_schema(array $config): void
 
 function eventforge_base_path(): string
 {
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+
+    if ($scriptName !== '') {
+        $marker = '/events/';
+        $position = strpos($scriptName, $marker);
+
+        if ($position !== false) {
+            return substr($scriptName, 0, $position + strlen('/events'));
+        }
+    }
+
     return '/event-forge/events';
 }
 

@@ -58,6 +58,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const mobileCalendarQuery = window.matchMedia('(max-width: 768px)');
 
+  function getEventForgeBasePath() {
+    const script = document.currentScript || Array.from(document.scripts).find((item) => {
+      return item.src && item.src.indexOf('/events/assets/js/calendar.js') !== -1;
+    });
+
+    if (script && script.src) {
+      try {
+        const scriptUrl = new URL(script.src, window.location.origin);
+        const marker = '/events/assets/js/calendar.js';
+        const markerIndex = scriptUrl.pathname.indexOf(marker);
+
+        if (markerIndex !== -1) {
+          return scriptUrl.pathname.substring(0, markerIndex + '/events'.length);
+        }
+      } catch (error) {
+        // Fall through to path fallback.
+      }
+    }
+
+    const pathMarker = '/events/';
+    const pathIndex = window.location.pathname.indexOf(pathMarker);
+
+    if (pathIndex !== -1) {
+      return window.location.pathname.substring(0, pathIndex + '/events'.length);
+    }
+
+    return '/event-forge/events';
+  }
+
+  const eventForgeBasePath = getEventForgeBasePath();
+
+  function eventForgePath(path) {
+    return `${eventForgeBasePath}/${String(path).replace(/^\/+/, '')}`;
+  }
+
   function getCalendarHeaderToolbar() {
     return {
       left: 'prev,next today',
@@ -187,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const eventId = encodeURIComponent(String(event.id));
 
-    return `/event-forge/events/ics.php?id=${eventId}`;
+    return eventForgePath(`ics.php?id=${eventId}`);
   }
 
   function buildAddressLabel(props) {
@@ -760,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
       listMonth: 'List'
     },
     events(fetchInfo, successCallback, failureCallback) {
-      fetch('/event-forge/events/api.php')
+      fetch(eventForgePath('api.php'))
         .then((response) => response.json())
         .then((data) => {
           if (data.meta && data.meta.calendar_theme_css_variables) {
@@ -873,7 +908,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const keyEl = document.getElementById('calendar-category-key');
 
   if (keyEl) {
-    fetch('/event-forge/events/categories.php')
+    fetch(eventForgePath('categories.php'))
       .then((response) => response.json())
       .then((items) => {
         if (!Array.isArray(items) || items.length === 0) {

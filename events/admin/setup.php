@@ -27,7 +27,7 @@ try {
 }
 
 if ($step === 'done') {
-    header('Location: /event-forge/events/admin/login.php');
+    header('Location: ' . eventforge_admin_path('login.php'));
     exit;
 }
 
@@ -52,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             eventforge_write_db_config($config);
             eventforge_run_initial_schema($config);
 
-            header('Location: /event-forge/events/admin/setup.php?step=admin');
+            header('Location: ' . eventforge_admin_path('setup.php') . '?step=admin');
             exit;
         }
 
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             mysqli_close($connection);
 
-            header('Location: /event-forge/events/admin/login.php');
+            header('Location: ' . eventforge_admin_path('login.php'));
             exit;
         }
     } catch (Throwable $e) {
