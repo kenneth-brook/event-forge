@@ -1081,3 +1081,31 @@
     text-align: left !important;
   }
 }
+
+#calendar .fc-daygrid-day,
+#resident-calendar .fc-daygrid-day {
+  height: auto !important;
+}
+
+#calendar .fc-daygrid-day-frame,
+#resident-calendar .fc-daygrid-day-frame {
+  min-height: 125px !important;
+}
+
+#calendar .fc-scrollgrid-sync-table,
+#resident-calendar .fc-scrollgrid-sync-table {
+  height: auto !important;
+}
+
+@media (max-width: 768px) {
+  #calendar .fc-daygrid-day-frame,
+  #resident-calendar .fc-daygrid-day-frame {
+    min-height: 90px !important;
+  }
+}
+
+/* Month / year title color */
+#calendar .fc-toolbar-title,
+#resident-calendar .fc-toolbar-title {
+  color: var(--ef-calendar-month-year-text-color, var(--ef-calendar-text-color, #1f2937)) !important;
+}

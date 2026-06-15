@@ -32,6 +32,11 @@ function eventforge_calendar_theme_definitions(): array
             'description' => 'Text color used on the calendar header background.',
             'default' => '#FFFFFF',
         ],
+        'theme_calendar_month_year_text_color' => [
+            'label' => 'Month / Year Text',
+            'description' => 'Text color for the month and year title at the top of the calendar.',
+            'default' => '#1F2937',
+        ],
         'theme_calendar_button_background_color' => [
             'label' => 'Button Background',
             'description' => 'Default action button background color.',
@@ -120,6 +125,7 @@ function eventforge_calendar_theme_to_css_variables(array $theme): array
         '--ef-calendar-border-color' => (string) ($theme['theme_calendar_border_color'] ?? '#D7DDE5'),
         '--ef-calendar-header-background-color' => (string) ($theme['theme_calendar_header_background_color'] ?? '#3F6244'),
         '--ef-calendar-header-text-color' => (string) ($theme['theme_calendar_header_text_color'] ?? '#FFFFFF'),
+        '--ef-calendar-month-year-text-color' => (string) ($theme['theme_calendar_month_year_text_color'] ?? '#1F2937'),
         '--ef-calendar-button-background-color' => (string) ($theme['theme_calendar_button_background_color'] ?? '#FFFFFF'),
         '--ef-calendar-button-text-color' => (string) ($theme['theme_calendar_button_text_color'] ?? '#111111'),
         '--ef-calendar-today-highlight-color' => (string) ($theme['theme_calendar_today_highlight_color'] ?? '#F3BE11'),
