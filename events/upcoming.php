@@ -25,6 +25,7 @@ $includeCanceled = isset($_GET['include_canceled'])
     && in_array(strtolower((string) $_GET['include_canceled']), ['1', 'true', 'yes'], true);
 
 $appVersion = eventforge_get_system_value($connection, 'app_version') ?? '';
+$releaseChannel = eventforge_get_release_channel($connection);
 $calendarTheme = eventforge_get_calendar_theme($connection);
 
 try {
@@ -34,10 +35,10 @@ try {
         $includeCanceled
     );
 } catch (Throwable $e) {
+    error_log('Event Forge upcoming query failed: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'error' => 'Upcoming event query failed',
-        'details' => $e->getMessage(),
+        'error' => 'Unable to load upcoming events.',
     ]);
     exit;
 }
@@ -46,6 +47,7 @@ echo json_encode([
     'events' => $events,
     'meta' => [
         'app_version' => $appVersion,
+        'release_channel' => $releaseChannel,
         'calendar_theme_css_variables' => eventforge_calendar_theme_to_css_variables($calendarTheme),
         'limit' => $limit,
         'include_canceled' => $includeCanceled,

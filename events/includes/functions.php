@@ -13,9 +13,49 @@ function upload_file(array $file, array $allowedExtensions, string $targetDir, s
 
     $originalName = $file['name'];
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $tmpName = (string) ($file['tmp_name'] ?? '');
 
     if (!in_array($extension, $allowedExtensions, true)) {
         throw new RuntimeException('Invalid file type.');
+    }
+
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        throw new RuntimeException('Invalid upload.');
+    }
+
+    $maxBytes = $extension === 'pdf'
+        ? 10 * 1024 * 1024
+        : 5 * 1024 * 1024;
+    $fileSize = isset($file['size']) ? (int) $file['size'] : filesize($tmpName);
+
+    if ($fileSize <= 0 || $fileSize > $maxBytes) {
+        throw new RuntimeException('File is too large.');
+    }
+
+    $allowedMimeTypes = [
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'png' => ['image/png'],
+        'webp' => ['image/webp'],
+        'pdf' => ['application/pdf'],
+    ];
+
+    $detectedMime = '';
+
+    if (class_exists('finfo')) {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $detectedMime = (string) $finfo->file($tmpName);
+    }
+
+    if (
+        $detectedMime === ''
+        || !in_array($detectedMime, $allowedMimeTypes[$extension] ?? [], true)
+    ) {
+        throw new RuntimeException('Invalid file content.');
+    }
+
+    if ($extension !== 'pdf' && getimagesize($tmpName) === false) {
+        throw new RuntimeException('Invalid image file.');
     }
 
     if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
@@ -25,7 +65,7 @@ function upload_file(array $file, array $allowedExtensions, string $targetDir, s
     $filename = $prefix . '-' . time() . '-' . bin2hex(random_bytes(4)) . '.' . $extension;
     $destination = rtrim($targetDir, '/') . '/' . $filename;
 
-    if (!move_uploaded_file($file['tmp_name'], $destination)) {
+    if (!move_uploaded_file($tmpName, $destination)) {
         throw new RuntimeException('Could not move uploaded file.');
     }
 
@@ -73,11 +113,11 @@ function eventforge_unique_event_slug(mysqli $connection, string $title, int $ex
     }
 }
 
-function eventforge_build_public_event_url(mysqli $connection, int $eventId, ?string $slug = null): string
+function eventforge_build_public_event_url_from_base(string $calendarUrl, int $eventId, ?string $slug = null): string
 {
-    $calendarUrl = eventforge_get_system_value($connection, 'public_calendar_url');
+    $calendarUrl = trim($calendarUrl);
 
-    if ($calendarUrl === null || trim($calendarUrl) === '') {
+    if ($calendarUrl === '') {
         return '';
     }
 
@@ -89,6 +129,15 @@ function eventforge_build_public_event_url(mysqli $connection, int $eventId, ?st
     }
 
     return $url;
+}
+
+function eventforge_build_public_event_url(mysqli $connection, int $eventId, ?string $slug = null): string
+{
+    return eventforge_build_public_event_url_from_base(
+        (string) (eventforge_get_system_value($connection, 'public_calendar_url') ?? ''),
+        $eventId,
+        $slug
+    );
 }
 
 function eventforge_build_qr_service_url(string $url, int $size = 240, int $margin = 16): string

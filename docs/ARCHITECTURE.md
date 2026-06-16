@@ -107,12 +107,14 @@ Responsibilities:
 ### 8. Settings / Configuration
 Purpose:
 - allow lightweight system customization without code edits
+- expose app version and release-channel metadata for deployment awareness
 
 Responsibilities:
 - feature toggles
 - branding controls
 - date/time display preferences
 - past-event visibility behavior
+- app version and test-candidate/stable release state
 
 ## Architectural Style
 Event Forge follows a practical modular-PHP architecture:

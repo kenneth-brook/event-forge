@@ -19,6 +19,7 @@ if (!eventforge_required_tables_exist($connection)) {
 try {
     eventforge_run_migrations($connection);
 } catch (Throwable $e) {
+    error_log('Event Forge database migration failed: ' . $e->getMessage());
     http_response_code(500);
-    exit('Database migration failed: ' . $e->getMessage());
+    exit('Database migration failed.');
 }

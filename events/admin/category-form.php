@@ -126,6 +126,7 @@ if ($id > 0) {
     <h1><?= $id > 0 ? 'Edit Category' : 'Add Category' ?></h1>
 
     <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-category.php')) ?>">
+      <?= eventforge_csrf_input() ?>
       <input type="hidden" name="id" value="<?= (int) $category['id'] ?>">
 
       <label for="category_name">Name</label>

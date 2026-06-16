@@ -104,6 +104,12 @@ function eventforge_get_schema_seed_statements(): array
         VALUES ('app_version', '" . EVENTFORGE_APP_VERSION . "')
         ON DUPLICATE KEY UPDATE system_value = VALUES(system_value)
         ",
+
+        "
+        INSERT INTO eventforge_system (system_key, system_value)
+        VALUES ('release_channel', '" . EVENTFORGE_RELEASE_CHANNEL . "')
+        ON DUPLICATE KEY UPDATE system_value = VALUES(system_value)
+        ",
     ];
 }
 

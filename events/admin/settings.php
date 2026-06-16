@@ -49,7 +49,8 @@ if ($canManageUsers) {
     $userResult = mysqli_query($connection, $userSql);
 
     if (!$userResult) {
-        exit('User query failed: ' . mysqli_error($connection));
+        error_log('Event Forge user query failed: ' . mysqli_error($connection));
+        exit('Unable to load users.');
     }
 }
 
@@ -60,7 +61,8 @@ $categoryResult = mysqli_query($connection, "
 ");
 
 if (!$categoryResult) {
-    exit('Category query failed: ' . mysqli_error($connection));
+    error_log('Event Forge settings category query failed: ' . mysqli_error($connection));
+    exit('Unable to load categories.');
 }
 
 $publicCalendarUrl = eventforge_get_system_value($connection, 'public_calendar_url') ?? '';
@@ -139,6 +141,23 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
       background: #fff;
       color: #111;
       border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .inline-action {
+      display: inline;
+      margin: 0;
+    }
+
+    .link-button {
+      display: inline;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #0b5cab;
+      font: inherit;
+      text-decoration: underline;
       cursor: pointer;
     }
 
@@ -402,73 +421,43 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
                     |
 
                     <?php if ($targetRole === 'staff'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Promote this staff account to staff manager?');">
-                        Make Staff Manager
-                      </a>
+                      <?= eventforge_admin_post_action('make-staff-manager.php', $targetId, 'Make Staff Manager', 'Promote this staff account to staff manager?') ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Promote this account to admin?');">
-                        Make Admin
-                      </a>
+                      <?= eventforge_admin_post_action('make-admin.php', $targetId, 'Make Admin', 'Promote this account to admin?') ?>
                       |
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
-                          Unsuspend
-                        </a>
+                        <?= eventforge_admin_post_action('unsuspend-user.php', $targetId, 'Unsuspend', 'Unsuspend this account?') ?>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
-                          Suspend
-                        </a>
+                        <?= eventforge_admin_post_action('suspend-user.php', $targetId, 'Suspend', 'Suspend this account?') ?>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
-                        Delete
-                      </a>
+                      <?= eventforge_admin_post_action('delete-user.php', $targetId, 'Delete', 'Delete this user?') ?>
 
                     <?php elseif ($targetRole === 'staff_manager'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Change this staff manager back to staff?');">
-                        Make Staff
-                      </a>
+                      <?= eventforge_admin_post_action('make-staff.php', $targetId, 'Make Staff', 'Change this staff manager back to staff?') ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-admin.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Promote this account to admin?');">
-                        Make Admin
-                      </a>
+                      <?= eventforge_admin_post_action('make-admin.php', $targetId, 'Make Admin', 'Promote this account to admin?') ?>
                       |
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
-                          Unsuspend
-                        </a>
+                        <?= eventforge_admin_post_action('unsuspend-user.php', $targetId, 'Unsuspend', 'Unsuspend this account?') ?>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
-                          Suspend
-                        </a>
+                        <?= eventforge_admin_post_action('suspend-user.php', $targetId, 'Suspend', 'Suspend this account?') ?>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
-                        Delete
-                      </a>
+                      <?= eventforge_admin_post_action('delete-user.php', $targetId, 'Delete', 'Delete this user?') ?>
 
                     <?php elseif ($targetRole === 'admin'): ?>
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff-manager.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Change this admin to staff manager?');">
-                        Make Staff Manager
-                      </a>
+                      <?= eventforge_admin_post_action('make-staff-manager.php', $targetId, 'Make Staff Manager', 'Change this admin to staff manager?') ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('make-staff.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Change this admin to staff?');">
-                        Make Staff
-                      </a>
+                      <?= eventforge_admin_post_action('make-staff.php', $targetId, 'Make Staff', 'Change this admin to staff?') ?>
                       |
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
-                          Unsuspend
-                        </a>
+                        <?= eventforge_admin_post_action('unsuspend-user.php', $targetId, 'Unsuspend', 'Unsuspend this account?') ?>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
-                          Suspend
-                        </a>
+                        <?= eventforge_admin_post_action('suspend-user.php', $targetId, 'Suspend', 'Suspend this account?') ?>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
-                        Delete
-                      </a>
+                      <?= eventforge_admin_post_action('delete-user.php', $targetId, 'Delete', 'Delete this user?') ?>
 
                     <?php else: ?>
                       <em>No actions</em>
@@ -477,18 +466,12 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
                   <?php elseif (is_staff_manager()): ?>
                     <?php if ($targetRole === 'staff'): ?>
                       <?php if ($isSuspended): ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('unsuspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Unsuspend this account?');">
-                          Unsuspend
-                        </a>
+                        <?= eventforge_admin_post_action('unsuspend-user.php', $targetId, 'Unsuspend', 'Unsuspend this account?') ?>
                       <?php else: ?>
-                        <a href="<?= htmlspecialchars(eventforge_admin_path('suspend-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Suspend this account?');">
-                          Suspend
-                        </a>
+                        <?= eventforge_admin_post_action('suspend-user.php', $targetId, 'Suspend', 'Suspend this account?') ?>
                       <?php endif; ?>
                       |
-                      <a href="<?= htmlspecialchars(eventforge_admin_path('delete-user.php')) ?>?id=<?= $targetId ?>" onclick="return confirm('Delete this user?');">
-                        Delete
-                      </a>
+                      <?= eventforge_admin_post_action('delete-user.php', $targetId, 'Delete', 'Delete this user?') ?>
                     <?php else: ?>
                       <em>No actions</em>
                     <?php endif; ?>
@@ -507,6 +490,7 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
         <h2>Add User</h2>
 
         <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-user.php')) ?>">
+          <?= eventforge_csrf_input() ?>
           <label for="username">Username</label>
           <input id="username" name="username" type="text" required>
 
@@ -597,7 +581,7 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
               <td>
                 <a href="<?= htmlspecialchars(eventforge_admin_path('category-form.php')) ?>?id=<?= (int) $category['id'] ?>">Edit</a>
                 |
-                <a href="<?= htmlspecialchars(eventforge_admin_path('delete-category.php')) ?>?id=<?= (int) $category['id'] ?>" onclick="return confirm('Delete this category?');">Delete</a>
+                <?= eventforge_admin_post_action('delete-category.php', (int) $category['id'], 'Delete', 'Delete this category?') ?>
               </td>
             </tr>
           <?php endwhile; ?>
@@ -614,6 +598,7 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
       <?php if (is_admin()): ?>
         <div class="toggle-card">
           <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-system-setting.php')) ?>">
+            <?= eventforge_csrf_input() ?>
             <input type="hidden" name="setting_key" value="permissions_allow_staff_manager_calendar_theme">
             <input type="hidden" name="setting_value" value="0">
 
@@ -636,6 +621,7 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
 
       <?php if ($canManageCalendarTheme): ?>
         <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-calendar-theme.php')) ?>">
+          <?= eventforge_csrf_input() ?>
           <div class="theme-grid">
             <?php foreach ($themeDefinitions as $key => $definition): ?>
               <?php
@@ -679,6 +665,7 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
 
       <?php if (is_admin()): ?>
         <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-system-setting.php')) ?>">
+          <?= eventforge_csrf_input() ?>
           <input type="hidden" name="setting_key" value="public_calendar_url">
 
           <label for="public_calendar_url">Public Calendar Page URL</label>
@@ -710,6 +697,7 @@ $mapboxGeocodingToken = eventforge_get_system_value($connection, 'mapbox_geocodi
 
       <?php if (is_admin()): ?>
         <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-system-setting.php')) ?>">
+          <?= eventforge_csrf_input() ?>
           <input type="hidden" name="settings_group" value="map-settings">
 
           <label for="mapbox_public_token">Mapbox Public Token</label>

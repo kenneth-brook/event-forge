@@ -218,7 +218,8 @@ $sql = "
 $result = mysqli_query($connection, $sql);
 
 if (!$result) {
-    exit('Query failed: ' . mysqli_error($connection));
+    error_log('Event Forge admin event query failed: ' . mysqli_error($connection));
+    exit('Unable to load events.');
 }
 
 $allRows = [];
@@ -365,6 +366,23 @@ usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
 
     a {
       color: #0b5cab;
+    }
+
+    .inline-action {
+      display: inline;
+      margin: 0;
+    }
+
+    .link-button {
+      display: inline;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #0b5cab;
+      font: inherit;
+      text-decoration: underline;
+      cursor: pointer;
     }
 
     .status-canceled {
@@ -557,9 +575,7 @@ usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
           <td>
             <?= !empty($row['is_published']) ? 'Yes' : 'No' ?>
             |
-            <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-publish.php')) ?>?id=<?= (int) $row['id'] ?>">
-              <?= !empty($row['is_published']) ? 'Unpublish' : 'Publish' ?>
-            </a>
+            <?= eventforge_admin_post_action('toggle-publish.php', (int) $row['id'], !empty($row['is_published']) ? 'Unpublish' : 'Publish') ?>
           </td>
 
           <td>
@@ -568,39 +584,35 @@ usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
               <div>
                 <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $row['id'] ?>">View</a>
                 |
-                <a
-                  href="<?= htmlspecialchars(eventforge_admin_path('make-independent.php')) ?>?id=<?= (int) $row['id'] ?>"
-                  title="This child will remain grouped under the parent series, but future parent changes will not overwrite it."
-                  onclick="return confirm('Make this generated child independent? Future parent changes will no longer overwrite this event.');"
-                >
-                  Make Independent
-                </a>
+                <?= eventforge_admin_post_action(
+                    'make-independent.php',
+                    (int) $row['id'],
+                    'Make Independent',
+                    'Make this generated child independent? Future parent changes will no longer overwrite this event.',
+                    'This child will remain grouped under the parent series, but future parent changes will not overwrite it.'
+                ) ?>
                 |
                 <?php if ($isCanceled): ?>
-                  <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">
-                    Uncancel
-                  </a>
+                  <?= eventforge_admin_post_action('uncancel-event.php', (int) $row['id'], 'Uncancel', 'Mark this event as active again?') ?>
                 <?php else: ?>
-                  <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event? This will also make it independent from the series.');">
-                    Cancel
-                  </a>
+                  <?= eventforge_admin_post_action('cancel-event.php', (int) $row['id'], 'Cancel', 'Cancel this event? This will also make it independent from the series.') ?>
                 <?php endif; ?>
               </div>
 
             <?php elseif ($isParent): ?>
               <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $row['id'] ?>">View</a> |
               <a href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>?id=<?= (int) $row['id'] ?>">Edit</a> |
-              <a href="<?= htmlspecialchars(eventforge_admin_path('delete-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event and its generated children?');">Delete</a>
+              <?= eventforge_admin_post_action('delete-event.php', (int) $row['id'], 'Delete', 'Delete this event and its generated children?') ?>
 
             <?php else: ?>
               <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $row['id'] ?>">View</a> |
               <a href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>?id=<?= (int) $row['id'] ?>">Edit</a> |
               <?php if ($isCanceled): ?>
-                <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Mark this event as active again?');">Uncancel</a> |
+                <?= eventforge_admin_post_action('uncancel-event.php', (int) $row['id'], 'Uncancel', 'Mark this event as active again?') ?> |
               <?php else: ?>
-                <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Cancel this event?');">Cancel</a> |
+                <?= eventforge_admin_post_action('cancel-event.php', (int) $row['id'], 'Cancel', 'Cancel this event?') ?> |
               <?php endif; ?>
-              <a href="<?= htmlspecialchars(eventforge_admin_path('delete-event.php')) ?>?id=<?= (int) $row['id'] ?>" onclick="return confirm('Delete this event?');">Delete</a>
+              <?= eventforge_admin_post_action('delete-event.php', (int) $row['id'], 'Delete', 'Delete this event?') ?>
             <?php endif; ?>
           </td>
         </tr>
@@ -649,9 +661,7 @@ usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
             <td>
               <?= !empty($childRow['is_published']) ? 'Yes' : 'No' ?>
               |
-              <a href="<?= htmlspecialchars(eventforge_admin_path('toggle-publish.php')) ?>?id=<?= (int) $childRow['id'] ?>">
-                <?= !empty($childRow['is_published']) ? 'Unpublish' : 'Publish' ?>
-              </a>
+              <?= eventforge_admin_post_action('toggle-publish.php', (int) $childRow['id'], !empty($childRow['is_published']) ? 'Unpublish' : 'Publish') ?>
             </td>
 
             <td>
@@ -660,33 +670,29 @@ usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
                 <div>
                   <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $childRow['id'] ?>">View</a>
                   |
-                  <a
-                    href="<?= htmlspecialchars(eventforge_admin_path('make-independent.php')) ?>?id=<?= (int) $childRow['id'] ?>"
-                    title="This child will remain grouped under the parent series, but future parent changes will not overwrite it."
-                    onclick="return confirm('Make this generated child independent? Future parent changes will no longer overwrite this event.');"
-                  >
-                    Make Independent
-                  </a>
+                  <?= eventforge_admin_post_action(
+                      'make-independent.php',
+                      (int) $childRow['id'],
+                      'Make Independent',
+                      'Make this generated child independent? Future parent changes will no longer overwrite this event.',
+                      'This child will remain grouped under the parent series, but future parent changes will not overwrite it.'
+                  ) ?>
                   |
                   <?php if ($childIsCanceled): ?>
-                    <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Mark this event as active again?');">
-                      Uncancel
-                    </a>
+                    <?= eventforge_admin_post_action('uncancel-event.php', (int) $childRow['id'], 'Uncancel', 'Mark this event as active again?') ?>
                   <?php else: ?>
-                    <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Cancel this event? This will also make it independent from the series.');">
-                      Cancel
-                    </a>
+                    <?= eventforge_admin_post_action('cancel-event.php', (int) $childRow['id'], 'Cancel', 'Cancel this event? This will also make it independent from the series.') ?>
                   <?php endif; ?>
                 </div>
               <?php else: ?>
                 <a href="<?= htmlspecialchars(eventforge_admin_path('view-event.php')) ?>?id=<?= (int) $childRow['id'] ?>">View</a> |
                 <a href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>?id=<?= (int) $childRow['id'] ?>">Edit</a> |
                 <?php if ($childIsCanceled): ?>
-                  <a href="<?= htmlspecialchars(eventforge_admin_path('uncancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Mark this event as active again?');">Uncancel</a> |
+                  <?= eventforge_admin_post_action('uncancel-event.php', (int) $childRow['id'], 'Uncancel', 'Mark this event as active again?') ?> |
                 <?php else: ?>
-                  <a href="<?= htmlspecialchars(eventforge_admin_path('cancel-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Cancel this event?');">Cancel</a> |
+                  <?= eventforge_admin_post_action('cancel-event.php', (int) $childRow['id'], 'Cancel', 'Cancel this event?') ?> |
                 <?php endif; ?>
-                <a href="<?= htmlspecialchars(eventforge_admin_path('delete-event.php')) ?>?id=<?= (int) $childRow['id'] ?>" onclick="return confirm('Delete this event?');">Delete</a>
+                <?= eventforge_admin_post_action('delete-event.php', (int) $childRow['id'], 'Delete', 'Delete this event?') ?>
               <?php endif; ?>
             </td>
           </tr>

@@ -13,8 +13,9 @@ require __DIR__ . '/../includes/auth.php';
 
 require_login();
 require_admin();
+eventforge_require_post_csrf();
 
-$id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+$id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 
 if ($id > 0) {
     $sql = "

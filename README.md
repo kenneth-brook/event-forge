@@ -3,8 +3,8 @@
 ![License](https://img.shields.io/badge/license-Proprietary-blue)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777BB4?logo=php)
 ![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MariaDB-orange)
-![Version](https://img.shields.io/badge/version-0.4.1-green)
-![Status](https://img.shields.io/badge/status-active-success)
+![Version](https://img.shields.io/badge/version-0.7.0-blue)
+![Status](https://img.shields.io/badge/status-test%20candidate-orange)
 ![Architecture](https://img.shields.io/badge/architecture-portable-informational)
 
 **Event Forge** is a portable event management and display utility built for static and legacy hosting environments.
@@ -29,7 +29,11 @@ Event Forge is designed to fill that gap.
 
 ## Current Version
 
-**Current release:** `0.4.1`
+**Current release:** `0.7.0`
+
+**Release channel:** `test-candidate`
+
+This build is marked as a test candidate. It is intended for focused validation before being promoted to a stable client deployment baseline.
 
 Event Forge now includes:
 
@@ -42,6 +46,10 @@ Event Forge now includes:
 - category system with colors
 - modal deep-link support
 - admin-side event URL tools
+- map location support with saved coordinates
+- calendar theme controls
+- CSRF protection for admin state-changing actions
+- hardened public rendering and upload validation
 
 ---
 
@@ -110,6 +118,7 @@ Event Forge now includes:
 - Database configuration setup
 - Schema version tracking through `eventforge_system`
 - App version tracking through `eventforge_system`
+- Release channel tracking through `eventforge_system`
 - Migration runner for dropped-in file updates
 - Legacy install adoption path for older deployments
 
@@ -127,7 +136,7 @@ This powers:
 - event widgets
 - future modules
 
-The API also returns install metadata needed by the display layer, including app version.
+The API also returns install metadata needed by the display layer, including app version and release channel.
 
 ---
 

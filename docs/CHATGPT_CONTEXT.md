@@ -92,7 +92,7 @@ When helping with this project:
 - preserve compatibility with current PHP/MySQL approach
 
 ## Current Focus
-Event Forge v0.4 stabilization and feature completion.
+Event Forge v0.7.0 test-candidate validation, hardening, and release readiness.
 
 ## Repo
 https://github.com/kenneth-brook/event-forge

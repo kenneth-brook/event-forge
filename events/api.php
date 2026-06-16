@@ -22,6 +22,7 @@ $hidePastEvents = true;
 $keepCurrentMonth = true;
 
 $appVersion = eventforge_get_system_value($connection, 'app_version') ?? '';
+$releaseChannel = eventforge_get_release_channel($connection);
 $calendarTheme = eventforge_get_calendar_theme($connection);
 $mapboxPublicToken = trim((string) (eventforge_get_system_value($connection, 'mapbox_public_token') ?? ''));
 
@@ -32,10 +33,10 @@ try {
         $keepCurrentMonth
     );
 } catch (Throwable $e) {
+    error_log('Event Forge API query failed: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'error' => 'Query failed',
-        'details' => $e->getMessage(),
+        'error' => 'Unable to load events.',
     ]);
     exit;
 }
@@ -44,6 +45,7 @@ echo json_encode([
     'events' => $events,
     'meta' => [
         'app_version' => $appVersion,
+        'release_channel' => $releaseChannel,
         'calendar_theme' => $calendarTheme,
         'calendar_theme_css_variables' => eventforge_calendar_theme_to_css_variables($calendarTheme),
         'mapbox_public_token' => $mapboxPublicToken,

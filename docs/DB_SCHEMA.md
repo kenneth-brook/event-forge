@@ -206,7 +206,7 @@ If those three things do not happen together, future debugging gets stupid fast.
 
 ## Current Effective Schema
 
-This section reflects the current database structure after applying the initial schema plus migrations 1 through 6.
+This section reflects the current database structure after applying the initial schema plus migrations 1 through 7.
 
 ---
 
@@ -254,6 +254,13 @@ Stores all events, including:
 | `end_datetime` | DATETIME | Yes | `NULL` | Event end |
 | `all_day` | TINYINT(1) | No | `0` | All-day flag |
 | `location` | VARCHAR(255) | Yes | `NULL` | Event location |
+| `address_line_1` | VARCHAR(255) | Yes | `NULL` | Added in migration 7; street address for saved map coordinates |
+| `address_line_2` | VARCHAR(255) | Yes | `NULL` | Added in migration 7; secondary address line |
+| `address_city` | VARCHAR(120) | Yes | `NULL` | Added in migration 7 |
+| `address_state` | VARCHAR(120) | Yes | `NULL` | Added in migration 7 |
+| `address_postal_code` | VARCHAR(32) | Yes | `NULL` | Added in migration 7 |
+| `latitude` | DECIMAL(10,7) | Yes | `NULL` | Added in migration 7; saved geocoded latitude |
+| `longitude` | DECIMAL(10,7) | Yes | `NULL` | Added in migration 7; saved geocoded longitude |
 | `summary` | TEXT | Yes | `NULL` | Short summary |
 | `description` | MEDIUMTEXT | Yes | `NULL` | Full event description |
 | `image_path` | VARCHAR(255) | Yes | `NULL` | Event image asset path |
@@ -288,6 +295,7 @@ Stores all events, including:
 - `KEY idx_events_parent_instance (parent_event_id, recurrence_instance_date)`
 - `KEY idx_events_calendar_filter (is_published, is_recurring_parent, start_datetime)`
 - `KEY idx_events_category_id (category_id)`
+- `KEY idx_events_lat_lng (latitude, longitude)`
 
 #### Foreign Keys
 - `fk_events_parent_event`
@@ -305,6 +313,7 @@ Stores all events, including:
 - `slug` was added after initial rollout and then backfilled for existing events.
 - `recurrence_instance_date` is important for identifying specific child instances in a recurring series.
 - `category_id` was added later, so older installs depend on migration 3 to reach current shape.
+- Address and coordinate fields were added in migration 7 to support public map display using saved server-side geocoding results.
 
 ---
 
@@ -328,10 +337,11 @@ Stores system-wide key/value pairs for application and schema metadata.
 Initial schema seeding inserts:
 - `schema_version`
 - `app_version`
+- `release_channel`
 
 #### Notes
 - This table acts as both lightweight settings storage and migration/version tracking.
-- Current migration execution updates `schema_version` after each successful migration and refreshes `app_version` afterward.
+- Current migration execution updates `schema_version` after each successful migration and refreshes `app_version` and `release_channel` afterward.
 
 ---
 
@@ -383,6 +393,7 @@ Stores event categories used for organization and frontend display styling.
 | `4` | Added `event_categories.font_color` |
 | `5` | Added `events.slug` and slug index |
 | `6` | Backfilled slug values for existing events |
+| `7` | Added event address fields, saved latitude/longitude, and `idx_events_lat_lng` |
 
 ---
 
@@ -422,6 +433,13 @@ CREATE TABLE events (
   end_datetime DATETIME DEFAULT NULL,
   all_day TINYINT(1) NOT NULL DEFAULT 0,
   location VARCHAR(255) DEFAULT NULL,
+  address_line_1 VARCHAR(255) DEFAULT NULL,
+  address_line_2 VARCHAR(255) DEFAULT NULL,
+  address_city VARCHAR(120) DEFAULT NULL,
+  address_state VARCHAR(120) DEFAULT NULL,
+  address_postal_code VARCHAR(32) DEFAULT NULL,
+  latitude DECIMAL(10,7) DEFAULT NULL,
+  longitude DECIMAL(10,7) DEFAULT NULL,
   summary TEXT DEFAULT NULL,
   description MEDIUMTEXT DEFAULT NULL,
   image_path VARCHAR(255) DEFAULT NULL,
@@ -454,6 +472,7 @@ CREATE TABLE events (
   KEY idx_events_parent_instance (parent_event_id, recurrence_instance_date),
   KEY idx_events_calendar_filter (is_published, is_recurring_parent, start_datetime),
   KEY idx_events_category_id (category_id),
+  KEY idx_events_lat_lng (latitude, longitude),
   CONSTRAINT fk_events_parent_event
     FOREIGN KEY (parent_event_id) REFERENCES events(id) ON DELETE CASCADE,
   CONSTRAINT fk_events_category

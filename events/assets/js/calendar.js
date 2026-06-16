@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return eventForgePath(`ics.php?id=${eventId}`);
   }
 
-  function buildAddressLabel(props) {
+  function buildAddressLines(props) {
     const lines = [];
 
     if (typeof props.location === 'string' && props.location.trim() !== '') {
@@ -259,7 +259,35 @@ document.addEventListener('DOMContentLoaded', () => {
       lines.push(cityStatePostalParts.join(', ').replace(', ,', ', '));
     }
 
-    return lines.join('<br>');
+    return lines;
+  }
+
+  function replaceWithTextLines(element, lines) {
+    if (!element) {
+      return;
+    }
+
+    element.replaceChildren();
+
+    lines.forEach((line, index) => {
+      if (index > 0) {
+        element.appendChild(document.createElement('br'));
+      }
+
+      element.appendChild(document.createTextNode(line));
+    });
+  }
+
+  function getSafeHexColor(value, fallback = '#cccccc') {
+    if (typeof value !== 'string') {
+      return fallback;
+    }
+
+    const trimmed = value.trim();
+
+    return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed)
+      ? trimmed
+      : fallback;
   }
 
   function eventHasUsableCoordinates(event) {
@@ -451,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (locationModalAddress) {
-      locationModalAddress.innerHTML = buildAddressLabel(props);
+      replaceWithTextLines(locationModalAddress, buildAddressLines(props));
     }
 
     if (locationModalNote) {
@@ -803,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           if (data.meta && data.meta.app_version) {
-            injectPoweredBy(data.meta.app_version);
+            injectPoweredBy(data.meta.app_version, data.meta.release_channel || '');
           }
 
           if (data.meta && typeof data.meta.mapbox_public_token === 'string') {
@@ -916,17 +944,26 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        keyEl.innerHTML = items.map((item) => {
-          const color = item.color || '#cccccc';
-          const name = item.name || 'Uncategorized';
+        keyEl.replaceChildren();
 
-          return `
-            <span class="calendar-category-key__item">
-              <span class="calendar-category-key__swatch" style="background:${color};"></span>
-              <span>${name}</span>
-            </span>
-          `;
-        }).join('');
+        items.forEach((item) => {
+          const color = getSafeHexColor(item.color);
+          const name = typeof item.name === 'string' && item.name.trim() !== ''
+            ? item.name.trim()
+            : 'Uncategorized';
+          const itemEl = document.createElement('span');
+          const swatchEl = document.createElement('span');
+          const nameEl = document.createElement('span');
+
+          itemEl.className = 'calendar-category-key__item';
+          swatchEl.className = 'calendar-category-key__swatch';
+          swatchEl.style.backgroundColor = color;
+          nameEl.textContent = name;
+
+          itemEl.appendChild(swatchEl);
+          itemEl.appendChild(nameEl);
+          keyEl.appendChild(itemEl);
+        });
       })
       .catch((err) => {
         console.error('Category key failed to load.', err);
@@ -960,11 +997,15 @@ function ensureCalendarFooter(calendarEl) {
   return footer;
 }
 
-function injectPoweredBy(version) {
+function injectPoweredBy(version, releaseChannel = '') {
   const el = document.getElementById('calendar-powered-by');
   if (!el) return;
 
-  el.textContent = `Powered by Event Forge v${version}`;
+  const channelLabel = releaseChannel === 'test-candidate'
+    ? ' Test Candidate'
+    : '';
+
+  el.textContent = `Powered by Event Forge v${version}${channelLabel}`;
 }
 
 function ensureEventModal() {

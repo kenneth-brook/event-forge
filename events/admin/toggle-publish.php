@@ -5,8 +5,9 @@ require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 require_login();
+eventforge_require_post_csrf();
 
-$id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+$id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 
 if ($id > 0) {
     $sql = "
@@ -19,5 +20,5 @@ if ($id > 0) {
     mysqli_query($connection, $sql);
 }
 
-header('Location: /event-forge/events/admin/index.php');
+header('Location: ' . eventforge_admin_path('index.php'));
 exit;

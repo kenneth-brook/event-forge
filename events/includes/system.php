@@ -68,3 +68,10 @@ function eventforge_get_app_version(mysqli $connection): string
 
     return $value !== null ? $value : '0.0.0';
 }
+
+function eventforge_get_release_channel(mysqli $connection): string
+{
+    $value = eventforge_get_system_value($connection, 'release_channel');
+
+    return $value !== null && trim($value) !== '' ? $value : 'stable';
+}

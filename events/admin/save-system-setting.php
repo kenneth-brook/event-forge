@@ -14,11 +14,7 @@ require_once __DIR__ . '/../includes/system.php';
 
 require_login();
 require_admin();
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    exit('Method not allowed.');
-}
+eventforge_require_post_csrf();
 
 $settingsGroup = trim((string) ($_POST['settings_group'] ?? ''));
 

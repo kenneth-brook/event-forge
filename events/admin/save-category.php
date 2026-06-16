@@ -18,6 +18,8 @@ if (!can_manage_users()) {
     exit('Access denied.');
 }
 
+eventforge_require_post_csrf();
+
 $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 $name = trim($_POST['name'] ?? '');
 $color = trim($_POST['color'] ?? '');
@@ -26,6 +28,12 @@ $isActive = isset($_POST['is_active']) ? 1 : 0;
 
 if ($name === '') {
     exit('Category name is required.');
+}
+
+foreach (['Background' => $color, 'Font' => $fontColor] as $label => $value) {
+    if ($value !== '' && !preg_match('/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', $value)) {
+        exit($label . ' color must be a valid hex color.');
+    }
 }
 
 $slug = strtolower($name);
@@ -75,7 +83,8 @@ if ($id > 0) {
 }
 
 if (!mysqli_query($connection, $sql)) {
-    exit('Category save failed: ' . mysqli_error($connection));
+    error_log('Event Forge category save failed: ' . mysqli_error($connection));
+    exit('Category save failed. Please try again.');
 }
 
 header('Location: ' . eventforge_admin_path('settings.php'));

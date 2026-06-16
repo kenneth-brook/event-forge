@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/installer.php';
+require_once __DIR__ . '/../includes/passwords.php';
 
 $error = '';
 $step = 'db';
@@ -23,7 +24,8 @@ try {
         }
     }
 } catch (Throwable $e) {
-    $error = $e->getMessage();
+    error_log('Event Forge setup detection failed: ' . $e->getMessage());
+    $error = 'Setup could not verify the current installation state.';
 }
 
 if ($step === 'done') {
@@ -32,6 +34,11 @@ if ($step === 'done') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!eventforge_verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        http_response_code(403);
+        exit('Security token check failed.');
+    }
+
     $formStep = $_POST['setup_step'] ?? '';
 
     try {
@@ -106,7 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ";
 
             if (!mysqli_query($connection, $sql)) {
-                throw new RuntimeException('Could not create admin user: ' . mysqli_error($connection));
+                error_log('Event Forge setup admin creation failed: ' . mysqli_error($connection));
+                throw new RuntimeException('Could not create admin user.');
             }
 
             mysqli_close($connection);
@@ -115,7 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     } catch (Throwable $e) {
-        $error = $e->getMessage();
+        error_log('Event Forge setup failed: ' . $e->getMessage());
+        $error = 'Setup failed. Please verify the submitted values and try again.';
     }
 }
 
@@ -191,6 +200,7 @@ if (isset($_GET['step']) && $_GET['step'] === 'admin') {
       <p class="note">Enter database connection details. Event Forge will write the configuration and create the required tables.</p>
 
       <form method="post">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(eventforge_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="setup_step" value="db">
 
         <label for="db_host">Database Host</label>
@@ -216,6 +226,7 @@ if (isset($_GET['step']) && $_GET['step'] === 'admin') {
       <p class="note">Create the first administrator account for this Event Forge installation.</p>
 
       <form method="post">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(eventforge_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="setup_step" value="admin">
 
         <label for="username">Admin Username</label>

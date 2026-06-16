@@ -19,6 +19,8 @@ if (!can_manage_users()) {
     exit('Access denied.');
 }
 
+eventforge_require_post_csrf();
+
 $username = trim((string) ($_POST['username'] ?? ''));
 $password = (string) ($_POST['password'] ?? '');
 $role = trim((string) ($_POST['role'] ?? 'staff'));
@@ -64,7 +66,8 @@ $checkSql = "
 $checkResult = mysqli_query($connection, $checkSql);
 
 if (!$checkResult) {
-    exit('User lookup failed: ' . mysqli_error($connection));
+    error_log('Event Forge user lookup failed: ' . mysqli_error($connection));
+    exit('User lookup failed. Please try again.');
 }
 
 if (mysqli_num_rows($checkResult) > 0) {
@@ -94,7 +97,8 @@ $sql = "
 ";
 
 if (!mysqli_query($connection, $sql)) {
-    exit('User save failed: ' . mysqli_error($connection));
+    error_log('Event Forge user save failed: ' . mysqli_error($connection));
+    exit('User save failed. Please try again.');
 }
 
 header('Location: ' . eventforge_admin_path('settings.php'));

@@ -18,7 +18,9 @@ if (!can_manage_users()) {
     exit('Access denied.');
 }
 
-$id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+eventforge_require_post_csrf();
+
+$id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 
 if ($id > 0) {
     $sql = "

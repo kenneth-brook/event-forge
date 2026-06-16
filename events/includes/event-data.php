@@ -49,9 +49,16 @@ function eventforge_build_event_detail_url(int $eventId, ?string $slug = null): 
     return $url;
 }
 
-function eventforge_build_event_view_url(mysqli $connection, int $eventId, ?string $slug = null): string
+function eventforge_build_event_view_url(
+    mysqli $connection,
+    int $eventId,
+    ?string $slug = null,
+    ?string $publicCalendarUrl = null
+): string
 {
-    $calendarUrl = eventforge_build_public_event_url($connection, $eventId, $slug);
+    $calendarUrl = $publicCalendarUrl !== null
+        ? eventforge_build_public_event_url_from_base($publicCalendarUrl, $eventId, $slug)
+        : eventforge_build_public_event_url($connection, $eventId, $slug);
 
     if ($calendarUrl !== '') {
         return $calendarUrl;
@@ -60,12 +67,16 @@ function eventforge_build_event_view_url(mysqli $connection, int $eventId, ?stri
     return eventforge_build_event_detail_url($eventId, $slug);
 }
 
-function eventforge_normalize_event_row(mysqli $connection, array $row): array
+function eventforge_normalize_event_row(
+    mysqli $connection,
+    array $row,
+    ?string $publicCalendarUrl = null
+): array
 {
     $eventId = (int) $row['id'];
     $slug = !empty($row['slug']) ? (string) $row['slug'] : null;
     $detailUrl = eventforge_build_event_detail_url($eventId, $slug);
-    $viewUrl = eventforge_build_event_view_url($connection, $eventId, $slug);
+    $viewUrl = eventforge_build_event_view_url($connection, $eventId, $slug, $publicCalendarUrl);
 
     return [
         'id' => $eventId,
@@ -125,10 +136,11 @@ function eventforge_fetch_public_calendar_events(
         throw new RuntimeException('Event query failed: ' . mysqli_error($connection));
     }
 
+    $publicCalendarUrl = (string) (eventforge_get_system_value($connection, 'public_calendar_url') ?? '');
     $events = [];
 
     while ($row = mysqli_fetch_assoc($result)) {
-        $events[] = eventforge_normalize_event_row($connection, $row);
+        $events[] = eventforge_normalize_event_row($connection, $row, $publicCalendarUrl);
     }
 
     mysqli_free_result($result);
@@ -164,10 +176,11 @@ function eventforge_fetch_upcoming_events(
         throw new RuntimeException('Upcoming event query failed: ' . mysqli_error($connection));
     }
 
+    $publicCalendarUrl = (string) (eventforge_get_system_value($connection, 'public_calendar_url') ?? '');
     $events = [];
 
     while ($row = mysqli_fetch_assoc($result)) {
-        $events[] = eventforge_normalize_event_row($connection, $row);
+        $events[] = eventforge_normalize_event_row($connection, $row, $publicCalendarUrl);
     }
 
     mysqli_free_result($result);

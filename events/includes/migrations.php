@@ -250,4 +250,8 @@ function eventforge_run_migrations(mysqli $connection): void
     if (!eventforge_set_system_value($connection, 'app_version', EVENTFORGE_APP_VERSION)) {
         throw new RuntimeException('Failed to update app_version.');
     }
+
+    if (!eventforge_set_system_value($connection, 'release_channel', EVENTFORGE_RELEASE_CHANNEL)) {
+        throw new RuntimeException('Failed to update release_channel.');
+    }
 }

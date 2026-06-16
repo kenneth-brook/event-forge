@@ -15,6 +15,7 @@ require_once __DIR__ . '/../includes/location.php';
 require_once __DIR__ . '/../includes/recurrence.php';
 
 require_login();
+eventforge_require_post_csrf();
 
 $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 
@@ -191,7 +192,8 @@ try {
         $pdfSqlPart = ", pdf_path = '{$pdfEsc}'";
     }
 } catch (Throwable $e) {
-    exit('Upload error: ' . $e->getMessage());
+    error_log('Event Forge upload failed: ' . $e->getMessage());
+    exit('Upload error. Please check the file type and size, then try again.');
 }
 
 if ($id > 0) {
@@ -303,7 +305,8 @@ if ($id > 0) {
 }
 
 if (!mysqli_query($connection, $sql)) {
-    exit('Save failed: ' . mysqli_error($connection));
+    error_log('Event Forge event save failed: ' . mysqli_error($connection));
+    exit('Save failed. Please try again.');
 }
 
 $savedId = $id > 0 ? $id : (int) mysqli_insert_id($connection);

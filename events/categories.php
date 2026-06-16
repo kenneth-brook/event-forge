@@ -23,10 +23,10 @@ $result = mysqli_query($connection, "
 ");
 
 if (!$result) {
+    error_log('Event Forge category query failed: ' . mysqli_error($connection));
     http_response_code(500);
     echo json_encode([
-        'error' => 'Category query failed',
-        'details' => mysqli_error($connection),
+        'error' => 'Unable to load categories.',
     ]);
     exit;
 }

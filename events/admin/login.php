@@ -19,35 +19,39 @@ if (is_logged_in()) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
+    if (!eventforge_verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        $error = 'Security token check failed. Please try again.';
+    } else {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
 
-    $usernameSafe = mysqli_real_escape_string($connection, $username);
+        $usernameSafe = mysqli_real_escape_string($connection, $username);
 
-    $sql = "
-        SELECT id, username, password_hash, role, is_suspended
-        FROM event_admin_users
-        WHERE username = '{$usernameSafe}'
-        LIMIT 1
-    ";
+        $sql = "
+            SELECT id, username, password_hash, role, is_suspended
+            FROM event_admin_users
+            WHERE username = '{$usernameSafe}'
+            LIMIT 1
+        ";
 
-    $result = mysqli_query($connection, $sql);
+        $result = mysqli_query($connection, $sql);
 
-    if ($result && $user = mysqli_fetch_assoc($result)) {
-        if (!empty($user['is_suspended'])) {
-            $error = 'This account is suspended.';
-        } elseif (password_verify($password, $user['password_hash'])) {
-            $_SESSION['events_admin_logged_in'] = true;
-            $_SESSION['events_admin_username'] = $user['username'];
-            $_SESSION['events_admin_role'] = $user['role'] ?? 'staff';
+        if ($result && $user = mysqli_fetch_assoc($result)) {
+            if (!empty($user['is_suspended'])) {
+                $error = 'This account is suspended.';
+            } elseif (password_verify($password, $user['password_hash'])) {
+                $_SESSION['events_admin_logged_in'] = true;
+                $_SESSION['events_admin_username'] = $user['username'];
+                $_SESSION['events_admin_role'] = $user['role'] ?? 'staff';
 
-            header('Location: ' . eventforge_admin_path('index.php'));
-            exit;
+                header('Location: ' . eventforge_admin_path('index.php'));
+                exit;
+            } else {
+                $error = 'Invalid username or password.';
+            }
         } else {
             $error = 'Invalid username or password.';
         }
-    } else {
-        $error = 'Invalid username or password.';
     }
 }
 ?>
@@ -74,6 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post">
+      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(eventforge_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+
       <label for="username">Username</label>
       <input id="username" name="username" required>
 

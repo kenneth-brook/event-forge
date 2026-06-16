@@ -101,7 +101,8 @@ $categoryResult = mysqli_query($connection, "
 ");
 
 if (!$categoryResult) {
-    exit('Category query failed: ' . mysqli_error($connection));
+    error_log('Event Forge event form category query failed: ' . mysqli_error($connection));
+    exit('Unable to load categories.');
 }
 
 $resolvedRecurrenceType = eventforge_resolve_recurrence_type($event);
@@ -316,6 +317,7 @@ if (!empty($event['start_datetime'])) {
     <p><a href="<?= htmlspecialchars(eventforge_admin_path('index.php')) ?>">← Back to events</a></p>
 
     <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('save-event.php')) ?>" enctype="multipart/form-data">
+      <?= eventforge_csrf_input() ?>
       <input type="hidden" name="id" value="<?= (int) $event['id'] ?>">
 
       <label for="title">Title</label>

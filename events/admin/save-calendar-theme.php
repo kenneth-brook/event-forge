@@ -19,10 +19,7 @@ if (!eventforge_can_manage_calendar_theme($connection)) {
     exit('Access denied.');
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    exit('Method not allowed.');
-}
+eventforge_require_post_csrf();
 
 foreach (eventforge_calendar_theme_definitions() as $key => $definition) {
     $rawValue = $_POST[$key] ?? '';

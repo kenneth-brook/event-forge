@@ -20,7 +20,7 @@ The current focus is the **events system**, but the longer-term direction includ
 
 ## Current State
 
-### v0.4.x - Deployable Upgrade-Aware Event Platform Baseline
+### v0.7.0 - Test Candidate Event Platform Baseline
 
 Implemented:
 
@@ -55,8 +55,13 @@ Implemented:
 - Migration runner for dropped-in file updates
 - Legacy install bridge-upgrade path
 - Powered-by Event Forge version display in the consumer layer
+- Map location storage and public map display support
+- Calendar theme controls
+- Admin CSRF hardening for state-changing actions
+- Public rendering sanitization and upload validation hardening
+- Release channel tracking through `eventforge_system.release_channel`
 
-This version is suitable for active client deployment.
+This version is marked as a test candidate for validation before stable client deployment.
 
 ---
 
@@ -68,6 +73,13 @@ Tracked in:
 `eventforge_system.app_version`
 
 Used to identify the deployed code release.
+
+### Release Channel
+Tracked in:
+
+`eventforge_system.release_channel`
+
+Used to distinguish stable builds from test candidates and other pre-release deployment states.
 
 ### Schema Version
 Tracked in:
