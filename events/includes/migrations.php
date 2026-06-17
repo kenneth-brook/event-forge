@@ -24,26 +24,36 @@ function eventforge_column_exists(mysqli $connection, string $table, string $col
     return $result && mysqli_num_rows($result) > 0;
 }
 
+function eventforge_index_exists(mysqli $connection, string $table, string $index): bool
+{
+    $tableEsc = mysqli_real_escape_string($connection, $table);
+    $indexEsc = mysqli_real_escape_string($connection, $index);
+
+    $sql = "
+        SELECT 1
+        FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+          AND table_name = '{$tableEsc}'
+          AND index_name = '{$indexEsc}'
+        LIMIT 1
+    ";
+
+    $result = mysqli_query($connection, $sql);
+
+    return $result && mysqli_num_rows($result) > 0;
+}
+
 function eventforge_get_migrations(): array
 {
     return [
-        1 => function (mysqli $connection): void {
-            // Initial schema baseline. No-op.
-        },
-
+        1 => function (mysqli $connection): void {},
         2 => function (mysqli $connection): void {
             if (!eventforge_column_exists($connection, 'event_admin_users', 'is_suspended')) {
-                $sql = "
-                    ALTER TABLE event_admin_users
-                    ADD COLUMN is_suspended TINYINT(1) NOT NULL DEFAULT 0
-                ";
-
-                if (!mysqli_query($connection, $sql)) {
+                if (!mysqli_query($connection, "ALTER TABLE event_admin_users ADD COLUMN is_suspended TINYINT(1) NOT NULL DEFAULT 0")) {
                     throw new RuntimeException('Failed adding is_suspended: ' . mysqli_error($connection));
                 }
             }
         },
-
         3 => function (mysqli $connection): void {
             $tableSql = "
                 CREATE TABLE IF NOT EXISTS event_categories (
@@ -64,42 +74,26 @@ function eventforge_get_migrations(): array
             }
 
             if (!eventforge_column_exists($connection, 'events', 'category_id')) {
-                $sql = "
-                    ALTER TABLE events
-                    ADD COLUMN category_id INT UNSIGNED DEFAULT NULL
-                ";
-
-                if (!mysqli_query($connection, $sql)) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD COLUMN category_id INT UNSIGNED DEFAULT NULL")) {
                     throw new RuntimeException('Failed adding events.category_id: ' . mysqli_error($connection));
                 }
             }
 
-            $indexCheckSql = "
-                SELECT 1
-                FROM information_schema.statistics
-                WHERE table_schema = DATABASE()
-                AND table_name = 'events'
-                AND index_name = 'idx_events_category_id'
-                LIMIT 1
-            ";
-            $indexCheckResult = mysqli_query($connection, $indexCheckSql);
-
-            if (!$indexCheckResult || mysqli_num_rows($indexCheckResult) === 0) {
+            if (!eventforge_index_exists($connection, 'events', 'idx_events_category_id')) {
                 if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_category_id (category_id)")) {
                     throw new RuntimeException('Failed adding idx_events_category_id: ' . mysqli_error($connection));
                 }
             }
 
-            $fkCheckSql = "
+            $fkCheckResult = mysqli_query($connection, "
                 SELECT 1
                 FROM information_schema.table_constraints
                 WHERE table_schema = DATABASE()
-                AND table_name = 'events'
-                AND constraint_name = 'fk_events_category'
-                AND constraint_type = 'FOREIGN KEY'
+                  AND table_name = 'events'
+                  AND constraint_name = 'fk_events_category'
+                  AND constraint_type = 'FOREIGN KEY'
                 LIMIT 1
-            ";
-            $fkCheckResult = mysqli_query($connection, $fkCheckSql);
+            ");
 
             if (!$fkCheckResult || mysqli_num_rows($fkCheckResult) === 0) {
                 $fkSql = "
@@ -115,49 +109,26 @@ function eventforge_get_migrations(): array
                 }
             }
         },
-
         4 => function (mysqli $connection): void {
             if (!eventforge_column_exists($connection, 'event_categories', 'font_color')) {
-                $sql = "
-                    ALTER TABLE event_categories
-                    ADD COLUMN font_color VARCHAR(20) DEFAULT NULL
-                ";
-
-                if (!mysqli_query($connection, $sql)) {
+                if (!mysqli_query($connection, "ALTER TABLE event_categories ADD COLUMN font_color VARCHAR(20) DEFAULT NULL")) {
                     throw new RuntimeException('Failed adding event_categories.font_color: ' . mysqli_error($connection));
                 }
             }
         },
-
         5 => function (mysqli $connection): void {
             if (!eventforge_column_exists($connection, 'events', 'slug')) {
-                $sql = "
-                    ALTER TABLE events
-                    ADD COLUMN slug VARCHAR(255) DEFAULT NULL
-                ";
-
-                if (!mysqli_query($connection, $sql)) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD COLUMN slug VARCHAR(255) DEFAULT NULL")) {
                     throw new RuntimeException('Failed adding events.slug: ' . mysqli_error($connection));
                 }
             }
 
-            $indexCheckSql = "
-                SELECT 1
-                FROM information_schema.statistics
-                WHERE table_schema = DATABASE()
-                AND table_name = 'events'
-                AND index_name = 'idx_events_slug'
-                LIMIT 1
-            ";
-            $indexCheckResult = mysqli_query($connection, $indexCheckSql);
-
-            if (!$indexCheckResult || mysqli_num_rows($indexCheckResult) === 0) {
+            if (!eventforge_index_exists($connection, 'events', 'idx_events_slug')) {
                 if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_slug (slug)")) {
                     throw new RuntimeException('Failed adding idx_events_slug: ' . mysqli_error($connection));
                 }
             }
         },
-
         6 => function (mysqli $connection): void {
             $result = mysqli_query($connection, "
                 SELECT id, title
@@ -173,23 +144,14 @@ function eventforge_get_migrations(): array
             while ($row = mysqli_fetch_assoc($result)) {
                 $eventId = (int) $row['id'];
                 $title = (string) ($row['title'] ?? '');
-
                 $slug = eventforge_unique_event_slug($connection, $title, $eventId);
                 $slugEsc = mysqli_real_escape_string($connection, $slug);
 
-                $updateSql = "
-                    UPDATE events
-                    SET slug = '{$slugEsc}'
-                    WHERE id = {$eventId}
-                    LIMIT 1
-                ";
-
-                if (!mysqli_query($connection, $updateSql)) {
+                if (!mysqli_query($connection, "UPDATE events SET slug = '{$slugEsc}' WHERE id = {$eventId} LIMIT 1")) {
                     throw new RuntimeException('Failed backfilling slug for event ' . $eventId . ': ' . mysqli_error($connection));
                 }
             }
         },
-
         7 => function (mysqli $connection): void {
             $columns = [
                 'address_line_1' => "ALTER TABLE events ADD COLUMN address_line_1 VARCHAR(255) DEFAULT NULL AFTER location",
@@ -209,19 +171,38 @@ function eventforge_get_migrations(): array
                 }
             }
 
-            $indexCheckSql = "
-                SELECT 1
-                FROM information_schema.statistics
-                WHERE table_schema = DATABASE()
-                  AND table_name = 'events'
-                  AND index_name = 'idx_events_lat_lng'
-                LIMIT 1
-            ";
-            $indexCheckResult = mysqli_query($connection, $indexCheckSql);
-
-            if (!$indexCheckResult || mysqli_num_rows($indexCheckResult) === 0) {
+            if (!eventforge_index_exists($connection, 'events', 'idx_events_lat_lng')) {
                 if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_lat_lng (latitude, longitude)")) {
                     throw new RuntimeException('Failed adding idx_events_lat_lng: ' . mysqli_error($connection));
+                }
+            }
+        },
+        8 => function (mysqli $connection): void {
+            $columns = [
+                'external_source' => "ALTER TABLE events ADD COLUMN external_source VARCHAR(80) DEFAULT NULL AFTER external_url",
+                'external_id' => "ALTER TABLE events ADD COLUMN external_id VARCHAR(191) DEFAULT NULL AFTER external_source",
+                'external_hash' => "ALTER TABLE events ADD COLUMN external_hash CHAR(64) DEFAULT NULL AFTER external_id",
+                'external_payload' => "ALTER TABLE events ADD COLUMN external_payload MEDIUMTEXT DEFAULT NULL AFTER external_hash",
+                'external_synced_at' => "ALTER TABLE events ADD COLUMN external_synced_at DATETIME DEFAULT NULL AFTER external_payload",
+            ];
+
+            foreach ($columns as $column => $sql) {
+                if (!eventforge_column_exists($connection, 'events', $column)) {
+                    if (!mysqli_query($connection, $sql)) {
+                        throw new RuntimeException('Failed adding events.' . $column . ': ' . mysqli_error($connection));
+                    }
+                }
+            }
+
+            if (!eventforge_index_exists($connection, 'events', 'idx_events_external_lookup')) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_external_lookup (external_source, external_id)")) {
+                    throw new RuntimeException('Failed adding idx_events_external_lookup: ' . mysqli_error($connection));
+                }
+            }
+
+            if (!eventforge_index_exists($connection, 'events', 'idx_events_external_synced_at')) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD KEY idx_events_external_synced_at (external_synced_at)")) {
+                    throw new RuntimeException('Failed adding idx_events_external_synced_at: ' . mysqli_error($connection));
                 }
             }
         },

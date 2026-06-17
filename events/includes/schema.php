@@ -31,12 +31,25 @@ function eventforge_get_schema_statements(): array
           all_day TINYINT(1) NOT NULL DEFAULT 0,
 
           location VARCHAR(255) DEFAULT NULL,
+          address_line_1 VARCHAR(255) DEFAULT NULL,
+          address_line_2 VARCHAR(255) DEFAULT NULL,
+          address_city VARCHAR(120) DEFAULT NULL,
+          address_state VARCHAR(120) DEFAULT NULL,
+          address_postal_code VARCHAR(32) DEFAULT NULL,
+          latitude DECIMAL(10,7) DEFAULT NULL,
+          longitude DECIMAL(10,7) DEFAULT NULL,
+
           summary TEXT DEFAULT NULL,
           description MEDIUMTEXT DEFAULT NULL,
 
           image_path VARCHAR(255) DEFAULT NULL,
           pdf_path VARCHAR(255) DEFAULT NULL,
           external_url VARCHAR(255) DEFAULT NULL,
+          external_source VARCHAR(80) DEFAULT NULL,
+          external_id VARCHAR(191) DEFAULT NULL,
+          external_hash CHAR(64) DEFAULT NULL,
+          external_payload MEDIUMTEXT DEFAULT NULL,
+          external_synced_at DATETIME DEFAULT NULL,
 
           is_published TINYINT(1) NOT NULL DEFAULT 1,
           is_canceled TINYINT(1) NOT NULL DEFAULT 0,
@@ -66,6 +79,9 @@ function eventforge_get_schema_statements(): array
           KEY idx_events_is_independent_child (is_independent_child),
           KEY idx_events_recurrence_instance_date (recurrence_instance_date),
           KEY idx_events_slug (slug),
+          KEY idx_events_lat_lng (latitude, longitude),
+          KEY idx_events_external_lookup (external_source, external_id),
+          KEY idx_events_external_synced_at (external_synced_at),
 
           KEY idx_events_parent_instance (parent_event_id, recurrence_instance_date),
           KEY idx_events_calendar_filter (is_published, is_recurring_parent, start_datetime),
@@ -95,7 +111,7 @@ function eventforge_get_schema_seed_statements(): array
     return [
         "
         INSERT INTO eventforge_system (system_key, system_value)
-        VALUES ('schema_version', '1')
+        VALUES ('schema_version', '" . EVENTFORGE_SCHEMA_VERSION . "')
         ON DUPLICATE KEY UPDATE system_value = VALUES(system_value)
         ",
 

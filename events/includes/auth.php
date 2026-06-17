@@ -64,6 +64,11 @@ function can_manage_admin_accounts(): bool
     return is_admin();
 }
 
+function can_sync_external_events(): bool
+{
+    return in_array(current_admin_role(), ['staff_manager', 'admin'], true);
+}
+
 function require_admin(): void
 {
     if (!is_admin()) {

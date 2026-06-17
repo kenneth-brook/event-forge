@@ -279,6 +279,8 @@ foreach ($allRows as $row) {
 }
 
 usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
+
+$externalEventsPageExists = is_file(__DIR__ . '/external-events.php');
 ?>
 <!doctype html>
 <html lang="en">
@@ -469,6 +471,10 @@ usort($preparedTopLevelRows, 'eventforge_compare_prepared_admin_rows');
       </div>
 
       <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>">Add Event</a>
+
+      <?php if ($externalEventsPageExists && can_sync_external_events()): ?>
+        <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('external-events.php')) ?>">External Events</a>
+      <?php endif; ?>
 
       <?php if (is_admin()): ?>
         <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('settings.php')) ?>">Settings</a>
