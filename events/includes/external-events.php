@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/system.php';
 require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/location.php';
 
 function eventforge_external_event_providers(): array
 {
@@ -361,6 +362,47 @@ function eventforge_normalize_external_event(string $provider, array $item): ?ar
     }
 }
 
+function eventforge_external_address_for_geocoding(array $event): array
+{
+    return [
+        'address_line_1' => (string) ($event['address_line_1'] ?? ''),
+        'address_line_2' => (string) ($event['address_line_2'] ?? ''),
+        'address_city' => (string) ($event['address_city'] ?? ''),
+        'address_state' => (string) ($event['address_state'] ?? ''),
+        'address_postal_code' => (string) ($event['address_postal_code'] ?? ''),
+    ];
+}
+
+function eventforge_geocode_external_event(mysqli $connection, array $event): array
+{
+    $event['latitude'] = null;
+    $event['longitude'] = null;
+
+    $address = eventforge_external_address_for_geocoding($event);
+
+    if (!eventforge_has_usable_address($address)) {
+        return $event;
+    }
+
+    $token = eventforge_get_mapbox_geocoding_token($connection);
+
+    if ($token === '') {
+        return $event;
+    }
+
+    $query = eventforge_build_geocoding_query((string) ($event['location'] ?? ''), $address);
+    $coordinates = eventforge_geocode_with_mapbox($token, $query);
+
+    if ($coordinates === null) {
+        return $event;
+    }
+
+    $event['latitude'] = $coordinates['latitude'];
+    $event['longitude'] = $coordinates['longitude'];
+
+    return $event;
+}
+
 function eventforge_external_event_hash(array $event): string
 {
     $hashFields = [
@@ -378,6 +420,8 @@ function eventforge_external_event_hash(array $event): string
         'description',
         'image_path',
         'external_url',
+        'latitude',
+        'longitude',
     ];
 
     $data = [];
@@ -410,6 +454,8 @@ function eventforge_find_existing_external_event(mysqli $connection, string $sou
 
 function eventforge_import_external_event(mysqli $connection, array $event): string
 {
+    $event = eventforge_geocode_external_event($connection, $event);
+
     $hash = eventforge_external_event_hash($event);
     $source = (string) $event['external_source'];
     $externalId = (string) $event['external_id'];
@@ -430,6 +476,8 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
     $imagePath = (string) ($event['image_path'] ?? '');
     $externalUrl = (string) ($event['external_url'] ?? '');
     $payload = (string) ($event['external_payload'] ?? '');
+    $latitude = $event['latitude'];
+    $longitude = $event['longitude'];
 
     if ($existing) {
         $eventId = (int) $existing['id'];
@@ -458,9 +506,9 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
             UPDATE events
             SET title = ?, slug = ?, start_datetime = ?, end_datetime = ?, all_day = ?,
                 location = ?, address_line_1 = ?, address_line_2 = ?, address_city = ?,
-                address_state = ?, address_postal_code = ?, summary = ?, description = ?,
-                image_path = ?, external_url = ?, external_hash = ?, external_payload = ?,
-                external_synced_at = NOW()
+                address_state = ?, address_postal_code = ?, latitude = ?, longitude = ?,
+                summary = ?, description = ?, image_path = ?, external_url = ?,
+                external_hash = ?, external_payload = ?, external_synced_at = NOW()
             WHERE id = ?
             LIMIT 1
         ";
@@ -472,7 +520,7 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
 
         mysqli_stmt_bind_param(
             $stmt,
-            'ssssissssssssssssi',
+            'ssssissssssddssssssi',
             $title,
             $slug,
             $start,
@@ -484,6 +532,8 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
             $city,
             $state,
             $postal,
+            $latitude,
+            $longitude,
             $summary,
             $description,
             $imagePath,
@@ -505,11 +555,11 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
         INSERT INTO events (
             title, slug, start_datetime, end_datetime, all_day, location,
             address_line_1, address_line_2, address_city, address_state,
-            address_postal_code, summary, description, image_path, external_url,
-            external_source, external_id, external_hash, external_payload,
-            external_synced_at, is_published, is_canceled
+            address_postal_code, latitude, longitude, summary, description,
+            image_path, external_url, external_source, external_id, external_hash,
+            external_payload, external_synced_at, is_published, is_canceled
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0
         )
     ";
     $stmt = mysqli_prepare($connection, $sql);
@@ -520,7 +570,7 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
 
     mysqli_stmt_bind_param(
         $stmt,
-        'ssssissssssssssssss',
+        'ssssissssssddssssssss',
         $title,
         $slug,
         $start,
@@ -532,6 +582,8 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
         $city,
         $state,
         $postal,
+        $latitude,
+        $longitude,
         $summary,
         $description,
         $imagePath,
