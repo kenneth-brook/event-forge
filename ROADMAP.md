@@ -1,9 +1,3 @@
-
----
-
-## Updated `ROADMAP.md`
-
-```markdown
 # Event Forge Roadmap
 
 This document tracks the evolution of Event Forge from a deployable event calendar utility into a broader modular utility platform.
@@ -20,7 +14,7 @@ The current focus is the **events system**, but the longer-term direction includ
 
 ## Current State
 
-### v0.7.0 - Test Candidate Event Platform Baseline
+### v0.7.2-TC - External Sync and Display Polish Baseline
 
 Implemented:
 
@@ -29,12 +23,17 @@ Implemented:
 - Cancel / uncancel
 - Image upload support
 - PDF upload support
+- Cost / admission field
 - FullCalendar integration
 - Month / week / day / list views
 - Event modal display
+- Cost display near the top of the modal when available
 - Modal deep-link support from shared event URLs
+- Timed multi-day event display as daily time blocks
+- Daily recurrence
 - Weekly recurrence
 - Monthly nth-weekday recurrence
+- Annual recurrence
 - Generated child event instances
 - Independent child workflow
 - Parent/child admin grouping
@@ -56,10 +55,17 @@ Implemented:
 - Legacy install bridge-upgrade path
 - Powered-by Event Forge version display in the consumer layer
 - Map location storage and public map display support
+- Native and imported event geocoding
 - Calendar theme controls
 - Admin CSRF hardening for state-changing actions
 - Public rendering sanitization and upload validation hardening
 - Release channel tracking through `eventforge_system.release_channel`
+- External event sync framework
+- ChamberMate provider support
+- Imported event plain-text description cleanup
+- Imported event cost/admission capture
+- Imported event image capture
+- Visible external sync error reporting
 
 This version is marked as a test candidate for validation before stable client deployment.
 
@@ -68,25 +74,52 @@ This version is marked as a test candidate for validation before stable client d
 ## Versioning Model
 
 ### App Version
+
 Tracked in:
 
-`eventforge_system.app_version`
+```text
+eventforge_system.app_version
+```
 
 Used to identify the deployed code release.
 
+Current app version:
+
+```text
+0.7.2
+```
+
 ### Release Channel
+
 Tracked in:
 
-`eventforge_system.release_channel`
+```text
+eventforge_system.release_channel
+```
 
 Used to distinguish stable builds from test candidates and other pre-release deployment states.
 
+Current release channel:
+
+```text
+test-candidate
+```
+
 ### Schema Version
+
 Tracked in:
 
-`eventforge_system.schema_version`
+```text
+eventforge_system.schema_version
+```
 
 Used to determine whether install-level database migrations must be executed.
+
+Current schema version:
+
+```text
+9
+```
 
 This allows:
 
@@ -99,38 +132,29 @@ This allows:
 
 ## Near-Term Goals
 
-### v0.5 - Event Linking and Display Refinement
+### v0.7.x - Test Candidate Hardening
 
 Planned:
 
-- cleaner event share-link handling
-- stronger public-link generation around calendar consumer URLs
-- improved modal behavior across more client layouts
-- copy-link UX refinement
-- event detail presentation polish
-- better direct-link behavior on public pages with content above the fold
+- stabilize external provider registry
+- add provider-specific field mapping notes
+- improve external sync audit output
+- add optional imported event review filters
+- formalize external provider extension interface
+- improve recurring event edit messaging
+- add upgrade verification / health check utility
+- finalize v0.7.x stable promotion checklist
 
-### v0.6 - Administrative Quality Expansion
-
-Planned:
-
-- profile-level controls for staff
-- password reset workflow
-- safer user lifecycle handling
-- edit-user workflow
-- cleaner role-action UX
-- additional admin-only install configuration values
-
-### v0.7 - Event Module Maturity Push
+### v0.8 - Event Module Production Baseline
 
 Planned:
 
-- recurrence helper improvements
-- recurrence validation hardening
-- return-independent-child-to-series workflow
-- skip-one-occurrence workflow
-- improved canceled-series behavior
-- better parent/child visibility and inspection tools
+- production-ready external sync settings
+- optional import logs
+- safer bulk publish/review tools
+- stronger install health dashboard
+- improved public embed configuration
+- better client handoff documentation
 
 ---
 
@@ -138,10 +162,16 @@ Planned:
 
 ### Recurrence Improvements
 
+Implemented:
+
+- Daily recurrence
+- Weekly recurrence
+- Monthly nth-weekday recurrence
+- Annual recurrence
+
 Planned:
 
 - Monthly date-based recurrence
-- Yearly recurrence
 - Better recurrence helper UX
 - Safer child editing controls
 - Series-level management improvements
@@ -156,6 +186,12 @@ Implemented / in progress:
 - Shareable event URLs
 - Modal deep-link landing flow
 - Admin event detail page
+- PDF flyer action
+- External more-info action
+- Add-to-calendar action
+- View-location action
+- Share event action
+- Cost/admission display
 
 Planned:
 
@@ -166,11 +202,40 @@ Planned:
 
 ---
 
+## External Event Sync
+
+Implemented:
+
+- Provider registry
+- ChamberMate provider
+- Feed URL settings
+- Active/inactive toggle
+- Staff-manager/admin sync access
+- Insert/update external event matching
+- Raw payload retention
+- Plain-text import cleanup
+- Imported cost capture
+- Imported image capture
+- Imported event geocoding
+- Visible sync error reporting
+
+Planned:
+
+- provider mapping documentation
+- provider test harness
+- import preview mode
+- imported event review queue/filter
+- optional dry-run sync
+- optional import audit table
+
+---
+
 ## Planned Platform Modules
 
 Event Forge is expected to expand beyond the calendar itself.
 
 ### Upcoming Events Scroller
+
 Planned use cases:
 
 - homepage promo strips
@@ -178,6 +243,7 @@ Planned use cases:
 - sidebar event widgets
 
 ### Announcement Bar
+
 Planned use cases:
 
 - temporary notices
@@ -186,6 +252,7 @@ Planned use cases:
 - campaign support
 
 ### Mapped Locations
+
 Planned use cases:
 
 - event maps
@@ -203,6 +270,9 @@ Implemented in part:
 
 - role-aware settings surface
 - admin-only public calendar page URL configuration
+- external event sync settings
+- Mapbox token settings
+- calendar theme controls
 
 Planned:
 
@@ -259,55 +329,6 @@ Implemented in part:
 
 Planned:
 
-- more automatic consumer-page bootstrapping
-- fewer assumptions about page-specific markup
-- stronger cross-install portability guarantees
-
----
-
-## Longer-Term Direction
-
-### v1.0 - Modular Utility Platform Foundation
-
-Target goals:
-
-- stable deployment pattern
-- module-aware platform structure
-- shared settings architecture
-- cleaner internal extension model
-- repeatable client rollout across multiple modules
-
-### v2.0 - Native Event Forge Calendar Engine
-
-Long-term goal:
-
-- replace FullCalendar dependency
-- use a native Event Forge renderer
-- keep the existing event data and admin model intact
-- support custom rendering behavior tailored to client needs
-
----
-
-## Development Principles
-
-Event Forge should continue to prioritize:
-
-- portability
-- deployment speed
-- maintainability
-- low infrastructure requirements
-- client-friendly controls
-- upgrade safety
-- modular growth without unnecessary complexity
-
----
-
-## Notes
-
-Features should continue to be added based on:
-
-1. repeat client need
-2. deployment efficiency
-3. maintainability across multiple installs
-4. alignment with the broader Event Forge platform direction
-5. whether the feature improves portability, upgrade safety, or real client usefulness
+- configurable embed snippets
+- multiple display styles
+- lightweight widget variants

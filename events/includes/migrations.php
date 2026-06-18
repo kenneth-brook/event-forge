@@ -206,6 +206,13 @@ function eventforge_get_migrations(): array
                 }
             }
         },
+        9 => function (mysqli $connection): void {
+            if (!eventforge_column_exists($connection, 'events', 'event_cost')) {
+                if (!mysqli_query($connection, "ALTER TABLE events ADD COLUMN event_cost VARCHAR(255) DEFAULT NULL AFTER external_url")) {
+                    throw new RuntimeException('Failed adding events.event_cost: ' . mysqli_error($connection));
+                }
+            }
+        },
     ];
 }
 

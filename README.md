@@ -3,13 +3,39 @@
 ![License](https://img.shields.io/badge/license-Proprietary-blue)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777BB4?logo=php)
 ![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MariaDB-orange)
-![Version](https://img.shields.io/badge/version-0.7.0-blue)
+![Version](https://img.shields.io/badge/version-0.7.2-blue)
 ![Status](https://img.shields.io/badge/status-test%20candidate-orange)
 ![Architecture](https://img.shields.io/badge/architecture-portable-informational)
 
 **Event Forge** is a portable event management and display utility built for static and legacy hosting environments.
 
-It provides a self-contained event system with an administrative interface, event API, recurring event support, cancellation handling, category-based styling, modal event display, and deployable calendar views without requiring Node.js, a framework build chain, or a modern CMS stack.
+It provides a self-contained event system with an administrative interface, event API, recurring event support, cancellation handling, category-based styling, location mapping, modal event display, external event ingestion, and deployable calendar views without requiring Node.js, a framework build chain, or a modern CMS stack.
+
+---
+
+## Current Version
+
+**Current release:** `0.7.2`
+
+**Release channel:** `test-candidate`
+
+**Schema version:** `9`
+
+This build is marked as a test candidate. It is intended for focused validation before being promoted to a stable client deployment baseline.
+
+### v0.7.2-TC Highlights
+
+- External event sync from provider feeds, currently ChamberMate.
+- Imported events are stored unpublished by default until reviewed.
+- Imported event descriptions are cleaned to plain text on import.
+- Imported event images are captured from provider storage keys when available.
+- Imported event addresses are geocoded with the same Mapbox workflow used by native events.
+- Imported cost/admission data is captured into the event cost field.
+- Native event form supports Cost / Admission.
+- Public modal displays cost near the top when available.
+- Timed multi-day events display as daily time blocks in calendar views.
+- External sync errors are surfaced in the External Event Sync panel.
+- External import write path uses escaped SQL, matching the native save path, to avoid host-specific prepared-statement bind issues.
 
 ---
 
@@ -19,37 +45,11 @@ Event Forge was built to solve a practical deployment problem:
 
 - static or lightly dynamic sites still need a real event system
 - older hosting environments often cannot support modern application stacks
-- clients still expect calendars, recurring events, attachments, categories, and admin controls
+- clients still expect calendars, recurring events, attachments, categories, maps, external event feeds, and admin controls
 - agencies need something repeatable, fast to deploy, and easy to maintain
 - installs need to be updatable without rebuilding the whole deployment by hand
 
 Event Forge is designed to fill that gap.
-
----
-
-## Current Version
-
-**Current release:** `0.7.0`
-
-**Release channel:** `test-candidate`
-
-This build is marked as a test candidate. It is intended for focused validation before being promoted to a stable client deployment baseline.
-
-Event Forge now includes:
-
-- automated installer flow
-- database schema version tracking
-- migration-based upgrades for dropped-in file updates
-- recurring event management
-- cancellation handling
-- independent child workflow
-- category system with colors
-- modal deep-link support
-- admin-side event URL tools
-- map location support with saved coordinates
-- calendar theme controls
-- CSRF protection for admin state-changing actions
-- hardened public rendering and upload validation
 
 ---
 
@@ -63,14 +63,32 @@ Event Forge now includes:
 - Optional image uploads
 - Optional PDF attachments
 - Event summaries and descriptions
+- Cost / admission field
 - Event category assignment
 - Event slug generation
 - Admin event detail view
 
+### External Event Sync
+
+- Provider registry for external event services
+- ChamberMate feed support
+- Admin toggle for external sync
+- Role-aware Sync Other Events button
+- Imported events remain unpublished until reviewed
+- Insert/update matching by external source and external ID
+- Raw payload retention for troubleshooting
+- Plain-text cleanup for imported HTML/editor descriptions
+- Imported image URL capture
+- Imported cost/admission capture
+- Imported address geocoding through the native Mapbox helper path
+- Visible sync error reporting in the admin panel
+
 ### Recurring Events
 
+- Daily recurrence
 - Weekly recurrence
 - Monthly nth-weekday recurrence
+- Annual recurrence
 - Generated child event instances
 - Independent child support for one-off overrides
 - Parent/child grouping in the admin interface
@@ -84,11 +102,24 @@ Event Forge now includes:
 - Day view
 - List view
 - Event detail modal
+- Cost shown near top of event popup when available
+- Timed multi-day events shown as daily time blocks
 - Category color styling
 - Category key / legend
 - Deep-link event modal support from shared URLs
+- Flyer, more-info, add-to-calendar, location, and share action buttons
+- SVG action icons
 - Powered-by Event Forge footer with version display
 - Canceled event display styling
+
+### Maps and Location
+
+- Address storage
+- Latitude / longitude storage
+- Mapbox geocoding token setting
+- Mapbox public token setting
+- Native and imported event geocoding
+- Public View Location modal when saved coordinates are available
 
 ### Category System
 
@@ -111,6 +142,7 @@ Event Forge now includes:
 - User suspension support
 - Role-aware settings display
 - Public calendar URL setting for shareable event links
+- CSRF protection for admin state-changing actions
 
 ### Deployment / Upgrade Model
 
@@ -126,7 +158,9 @@ Event Forge now includes:
 
 Event data is exposed through:
 
-`/events/api.php`
+```text
+/events/api.php
+```
 
 This powers:
 
@@ -136,7 +170,7 @@ This powers:
 - event widgets
 - future modules
 
-The API also returns install metadata needed by the display layer, including app version and release channel.
+The API also returns install metadata needed by the display layer, including app version, release channel, calendar theme values, and Mapbox public token.
 
 ---
 
@@ -153,14 +187,38 @@ No Node.js, npm, or build pipeline is required.
 
 ---
 
+## Upgrade Notes for v0.7.2-TC
+
+v0.7.2 uses schema version `9`.
+
+The key database addition is:
+
+```sql
+ALTER TABLE events
+  ADD COLUMN event_cost VARCHAR(255) DEFAULT NULL AFTER external_url;
+```
+
+Normal installs should use the migration runner. For manual rescue, see:
+
+```text
+docs/upgrades/v0.7.2.sql
+```
+
+---
+
 ## Project Structure
 
 ```text
 event-forge/
 ├── README.md
 ├── ROADMAP.md
+├── AGENTS.md
 ├── LICENSE
 ├── .gitignore
+├── docs/
+│   ├── AI_HELPER.md
+│   └── upgrades/
+│       └── v0.7.2.sql
 ├── events/
 │   ├── api.php
 │   ├── categories.php
@@ -179,3 +237,4 @@ event-forge/
 └── examples/
     ├── consumer-page-example.php
     └── embed-snippets.md
+```

@@ -19,14 +19,15 @@ eventforge_require_post_csrf();
 
 $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
 
-$title = trim($_POST['title'] ?? '');
-$startDatetime = trim($_POST['start_datetime'] ?? '');
-$endDatetime = trim($_POST['end_datetime'] ?? '');
+$title = trim((string) ($_POST['title'] ?? ''));
+$startDatetime = trim((string) ($_POST['start_datetime'] ?? ''));
+$endDatetime = trim((string) ($_POST['end_datetime'] ?? ''));
 $allDay = isset($_POST['all_day']) ? 1 : 0;
-$location = trim($_POST['location'] ?? '');
-$summary = trim($_POST['summary'] ?? '');
-$description = trim($_POST['description'] ?? '');
-$externalUrl = trim($_POST['external_url'] ?? '');
+$location = trim((string) ($_POST['location'] ?? ''));
+$summary = trim((string) ($_POST['summary'] ?? ''));
+$description = trim((string) ($_POST['description'] ?? ''));
+$externalUrl = trim((string) ($_POST['external_url'] ?? ''));
+$eventCost = trim((string) ($_POST['event_cost'] ?? ''));
 $isPublished = isset($_POST['is_published']) ? 1 : 0;
 $address = eventforge_normalize_address_input($_POST);
 
@@ -83,6 +84,7 @@ $locationEsc = mysqli_real_escape_string($connection, $location);
 $summaryEsc = mysqli_real_escape_string($connection, $summary);
 $descriptionEsc = mysqli_real_escape_string($connection, $description);
 $externalUrlEsc = mysqli_real_escape_string($connection, $externalUrl);
+$eventCostEsc = mysqli_real_escape_string($connection, $eventCost);
 
 $addressLine1Esc = mysqli_real_escape_string($connection, $address['address_line_1']);
 $addressLine2Esc = mysqli_real_escape_string($connection, $address['address_line_2']);
@@ -214,6 +216,7 @@ if ($id > 0) {
             summary = '{$summaryEsc}',
             description = '{$descriptionEsc}',
             external_url = '{$externalUrlEsc}',
+            event_cost = '{$eventCostEsc}',
             category_id = {$categorySql},
             is_published = {$isPublished},
             is_recurring_parent = {$isRecurringParent},
@@ -263,6 +266,7 @@ if ($id > 0) {
             image_path,
             pdf_path,
             external_url,
+            event_cost,
             is_published,
             is_recurring_parent,
             recurrence_type,
@@ -291,6 +295,7 @@ if ($id > 0) {
             {$imageInsert},
             {$pdfInsert},
             '{$externalUrlEsc}',
+            '{$eventCostEsc}',
             {$isPublished},
             {$isRecurringParent},
             {$recurrenceTypeSql},
@@ -311,15 +316,6 @@ if (!mysqli_query($connection, $sql)) {
 
 $savedId = $id > 0 ? $id : (int) mysqli_insert_id($connection);
 
-/*
-|--------------------------------------------------------------------------
-| Recurrence generation / cleanup
-|--------------------------------------------------------------------------
-|
-| Recurring parents generate normal child events.
-| Non-recurring events or recurring rules turned off will clear children.
-|
-*/
 if ($savedId > 0) {
     if ($isRecurringParent === 1) {
         eventforge_generate_recurrence($connection, $savedId);

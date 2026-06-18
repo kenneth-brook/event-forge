@@ -45,6 +45,7 @@ function eventforge_get_schema_statements(): array
           image_path VARCHAR(255) DEFAULT NULL,
           pdf_path VARCHAR(255) DEFAULT NULL,
           external_url VARCHAR(255) DEFAULT NULL,
+          event_cost VARCHAR(255) DEFAULT NULL,
           external_source VARCHAR(80) DEFAULT NULL,
           external_id VARCHAR(191) DEFAULT NULL,
           external_hash CHAR(64) DEFAULT NULL,

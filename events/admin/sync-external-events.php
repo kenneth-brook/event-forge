@@ -22,13 +22,23 @@ if (!can_sync_external_events()) {
 }
 
 try {
+    eventforge_set_system_value($connection, 'external_events_last_sync_error', '');
+
     eventforge_sync_external_events($connection);
 
     header('Location: ' . eventforge_admin_path('external-events.php') . '?status=synced');
     exit;
 } catch (Throwable $e) {
-    error_log('Event Forge external sync failed: ' . $e->getMessage());
+    $message = trim($e->getMessage());
 
-    header('Location: ' . eventforge_admin_path('external-events.php') . '?status=sync-error');
+    if ($message === '') {
+        $message = 'Unknown sync error.';
+    }
+
+    error_log('Event Forge external sync failed: ' . $message);
+
+    eventforge_set_system_value($connection, 'external_events_last_sync_error', $message);
+
+    header('Location: ' . eventforge_admin_path('external-events.php') . '?status=sync-error&sync_error=' . rawurlencode($message));
     exit;
 }

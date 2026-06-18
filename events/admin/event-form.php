@@ -14,39 +14,14 @@ require __DIR__ . '/../includes/recurrence.php';
 
 require_login();
 
-if (!function_exists('eventforge_resolve_recurrence_type')) {
-    function eventforge_resolve_recurrence_type(array $event): string
-    {
-        $type = strtolower(trim((string) ($event['recurrence_type'] ?? '')));
+function eventforge_selected_option($actual, string $expected): string
+{
+    return (string) $actual === $expected ? 'selected' : '';
+}
 
-        if ($type === 'monthly') {
-            $type = 'monthly_nth';
-        }
-
-        if (in_array($type, ['daily', 'weekly', 'monthly_nth', 'annual'], true)) {
-            return $type;
-        }
-
-        $hasMonthlyParts = trim((string) ($event['recurrence_week_of_month'] ?? '')) !== ''
-            && trim((string) ($event['recurrence_day_of_week'] ?? '')) !== '';
-
-        if ($hasMonthlyParts) {
-            return 'monthly_nth';
-        }
-
-        $daysRaw = $event['recurrence_days'] ?? '';
-        $days = is_array($daysRaw)
-            ? $daysRaw
-            : explode(',', (string) $daysRaw);
-
-        foreach ($days as $day) {
-            if (trim((string) $day) !== '') {
-                return 'weekly';
-            }
-        }
-
-        return '';
-    }
+function eventforge_checked_option(array $values, string $expected): string
+{
+    return in_array($expected, $values, true) ? 'checked' : '';
 }
 
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
@@ -70,9 +45,9 @@ $event = [
     'image_path' => '',
     'pdf_path' => '',
     'external_url' => '',
+    'event_cost' => '',
     'is_published' => 1,
     'category_id' => '',
-    'parent_event_id' => '',
     'is_recurring_parent' => 0,
     'recurrence_type' => '',
     'recurrence_interval' => 1,
@@ -80,8 +55,6 @@ $event = [
     'recurrence_week_of_month' => '',
     'recurrence_day_of_week' => '',
     'recurrence_end_date' => '',
-    'recurrence_count' => '',
-    'recurrence_instance_date' => '',
 ];
 
 if ($id > 0) {
@@ -105,9 +78,6 @@ if (!$categoryResult) {
     exit('Unable to load categories.');
 }
 
-$resolvedRecurrenceType = eventforge_resolve_recurrence_type($event);
-$isRecurringSelected = !empty($event['is_recurring_parent']) ? '1' : '0';
-
 $selectedDays = !empty($event['recurrence_days'])
     ? array_map('trim', explode(',', (string) $event['recurrence_days']))
     : [];
@@ -121,22 +91,6 @@ $weekdayOptions = [
     'FR' => 'Friday',
     'SA' => 'Saturday',
 ];
-
-$annualPatternMode = 'same_date';
-if (
-    $resolvedRecurrenceType === 'annual'
-    && (
-        trim((string) ($event['recurrence_week_of_month'] ?? '')) !== ''
-        || trim((string) ($event['recurrence_day_of_week'] ?? '')) !== ''
-    )
-) {
-    $annualPatternMode = 'nth_weekday';
-}
-
-$annualAnchorLabel = '';
-if (!empty($event['start_datetime'])) {
-    $annualAnchorLabel = date('F j', strtotime((string) $event['start_datetime']));
-}
 ?>
 <!doctype html>
 <html lang="en">
@@ -144,171 +98,23 @@ if (!empty($event['start_datetime'])) {
   <meta charset="utf-8">
   <title><?= $id > 0 ? 'Edit Event' : 'Add Event' ?></title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2rem;
-      background: #f5f7fa;
-      color: #1f2937;
-    }
-
-    .wrap {
-      max-width: 900px;
-      margin: 0 auto;
-      background: #fff;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
-    }
-
-    label {
-      display: block;
-      margin: 1rem 0 .35rem;
-      font-weight: 600;
-    }
-
-    input[type="text"],
-    input[type="datetime-local"],
-    input[type="date"],
-    input[type="number"],
-    input[type="url"],
-    select,
-    textarea {
-      width: 100%;
-      padding: .7rem;
-      box-sizing: border-box;
-    }
-
-    textarea {
-      min-height: 120px;
-    }
-
-    .actions {
-      margin-top: 1.5rem;
-    }
-
-    .inline {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      margin-top: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .inline label {
-      margin: 0;
-      font-weight: 400;
-    }
-
-    .checkbox-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .75rem 1rem;
-      margin-top: .5rem;
-    }
-
-    .checkbox-grid label {
-      margin: 0;
-      font-weight: 400;
-    }
-
-    .field-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1rem;
-    }
-
-    .field-grid .full {
-      grid-column: 1 / -1;
-    }
-
-    hr {
-      margin: 2rem 0;
-      border: 0;
-      border-top: 1px solid #d7dde5;
-    }
-
-    h2 {
-      margin: 0 0 1rem;
-      font-size: 1.25rem;
-    }
-
-    .note {
-      margin-top: .75rem;
-      color: #4b5563;
-      font-size: .95rem;
-    }
-
-    .preview-image {
-      max-width: 240px;
-      height: auto;
-      border-radius: 8px;
-      display: block;
-      margin-top: .5rem;
-    }
-
-    .help-badge {
-      display: inline-block;
-      border: 1px solid #3f6244;
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: .85rem;
-      line-height: 1;
-      color: #3f6244;
-      cursor: help;
-      vertical-align: middle;
-      margin-left: .35rem;
-    }
-
-    .recurrence-shell {
-      border: 1px solid #d7dde5;
-      border-radius: 12px;
-      padding: 1rem 1rem 1.25rem;
-      background: #fafbfd;
-    }
-
-    .recurrence-step {
-      margin-top: 1rem;
-    }
-
-    .recurrence-section {
-      margin-top: 1rem;
-      padding: 1rem;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      background: #fff;
-    }
-
-    .recurrence-section[hidden],
-    .recurrence-step[hidden],
-    .annual-pattern-fields[hidden] {
-      display: none !important;
-    }
-
-    .section-title {
-      margin: 0 0 .5rem;
-      font-size: 1rem;
-      font-weight: 700;
-    }
-
-    .location-status {
-      margin-top: 1rem;
-      padding: .85rem 1rem;
-      border-radius: 10px;
-      border: 1px solid #d7dde5;
-      background: #f8fafc;
-      color: #334155;
-      font-size: .95rem;
-    }
-
-    @media (max-width: 720px) {
-      .field-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .field-grid .full {
-        grid-column: auto;
-      }
-    }
+    body { font-family: Arial, sans-serif; padding:2rem; background:#f5f7fa; color:#1f2937; }
+    .wrap { max-width:900px; margin:0 auto; background:#fff; padding:2rem; border-radius:12px; box-shadow:0 10px 24px rgba(0,0,0,.08); }
+    label { display:block; margin:1rem 0 .35rem; font-weight:600; }
+    input[type="text"], input[type="datetime-local"], input[type="date"], input[type="number"], input[type="url"], select, textarea { width:100%; padding:.7rem; box-sizing:border-box; }
+    textarea { min-height:120px; }
+    .inline { display:flex; gap:1rem; align-items:center; margin-top:1rem; flex-wrap:wrap; }
+    .inline label { margin:0; font-weight:400; }
+    .field-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+    .field-grid .full { grid-column:1 / -1; }
+    .checkbox-grid { display:flex; flex-wrap:wrap; gap:.75rem 1rem; margin-top:.5rem; }
+    .checkbox-grid label { margin:0; font-weight:400; }
+    .note { margin-top:.75rem; color:#4b5563; font-size:.95rem; }
+    .location-status { margin-top:1rem; padding:.85rem 1rem; border-radius:10px; border:1px solid #d7dde5; background:#f8fafc; color:#334155; font-size:.95rem; }
+    .preview-image { max-width:240px; height:auto; border-radius:8px; display:block; margin-top:.5rem; }
+    hr { margin:2rem 0; border:0; border-top:1px solid #d7dde5; }
+    .actions { margin-top:1.5rem; }
+    @media(max-width:720px){ .field-grid{grid-template-columns:1fr;} .field-grid .full{grid-column:auto;} }
   </style>
 </head>
 <body>
@@ -324,93 +130,47 @@ if (!empty($event['start_datetime'])) {
       <input id="title" name="title" type="text" required value="<?= htmlspecialchars((string) $event['title']) ?>">
 
       <label for="start_datetime">Start Date/Time</label>
-      <input
-        id="start_datetime"
-        name="start_datetime"
-        type="datetime-local"
-        value="<?= !empty($event['start_datetime']) ? htmlspecialchars(date('Y-m-d\TH:i', strtotime((string) $event['start_datetime']))) : '' ?>"
-      >
+      <input id="start_datetime" name="start_datetime" type="datetime-local" value="<?= !empty($event['start_datetime']) ? htmlspecialchars(date('Y-m-d\TH:i', strtotime((string) $event['start_datetime']))) : '' ?>">
 
       <label for="end_datetime">End Date/Time</label>
-      <input
-        id="end_datetime"
-        name="end_datetime"
-        type="datetime-local"
-        value="<?= !empty($event['end_datetime']) ? htmlspecialchars(date('Y-m-d\TH:i', strtotime((string) $event['end_datetime']))) : '' ?>"
-      >
+      <input id="end_datetime" name="end_datetime" type="datetime-local" value="<?= !empty($event['end_datetime']) ? htmlspecialchars(date('Y-m-d\TH:i', strtotime((string) $event['end_datetime']))) : '' ?>">
 
       <div class="inline">
-        <label>
-          <input type="checkbox" name="all_day" value="1" <?= !empty($event['all_day']) ? 'checked' : '' ?>>
-          All Day
-        </label>
-
-        <label>
-          <input type="checkbox" name="is_published" value="1" <?= !empty($event['is_published']) ? 'checked' : '' ?>>
-          Published
-        </label>
+        <label><input type="checkbox" name="all_day" value="1" <?= !empty($event['all_day']) ? 'checked' : '' ?>> All Day</label>
+        <label><input type="checkbox" name="is_published" value="1" <?= !empty($event['is_published']) ? 'checked' : '' ?>> Published</label>
       </div>
 
       <label for="location">Location</label>
       <input id="location" name="location" type="text" value="<?= htmlspecialchars((string) $event['location']) ?>">
 
       <hr>
-
       <h2>Address / Map Location</h2>
-      <p class="note">
-        Enter a usable address to geocode and save latitude/longitude when this event is created or updated. Public map display will use the saved coordinates later.
-      </p>
+      <p class="note">Enter a usable address to geocode and save latitude/longitude when this event is created or updated.</p>
 
       <div class="field-grid">
-        <div class="full">
-          <label for="address_line_1">Address Line 1</label>
-          <input id="address_line_1" name="address_line_1" type="text" value="<?= htmlspecialchars((string) $event['address_line_1']) ?>">
-        </div>
-
-        <div class="full">
-          <label for="address_line_2">Address Line 2</label>
-          <input id="address_line_2" name="address_line_2" type="text" value="<?= htmlspecialchars((string) $event['address_line_2']) ?>">
-        </div>
-
-        <div>
-          <label for="address_city">City</label>
-          <input id="address_city" name="address_city" type="text" value="<?= htmlspecialchars((string) $event['address_city']) ?>">
-        </div>
-
-        <div>
-          <label for="address_state">State</label>
-          <input id="address_state" name="address_state" type="text" value="<?= htmlspecialchars((string) $event['address_state']) ?>">
-        </div>
-
-        <div>
-          <label for="address_postal_code">Postal Code</label>
-          <input id="address_postal_code" name="address_postal_code" type="text" value="<?= htmlspecialchars((string) $event['address_postal_code']) ?>">
-        </div>
+        <div class="full"><label for="address_line_1">Address Line 1</label><input id="address_line_1" name="address_line_1" type="text" value="<?= htmlspecialchars((string) $event['address_line_1']) ?>"></div>
+        <div class="full"><label for="address_line_2">Address Line 2</label><input id="address_line_2" name="address_line_2" type="text" value="<?= htmlspecialchars((string) $event['address_line_2']) ?>"></div>
+        <div><label for="address_city">City</label><input id="address_city" name="address_city" type="text" value="<?= htmlspecialchars((string) $event['address_city']) ?>"></div>
+        <div><label for="address_state">State</label><input id="address_state" name="address_state" type="text" value="<?= htmlspecialchars((string) $event['address_state']) ?>"></div>
+        <div><label for="address_postal_code">Postal Code</label><input id="address_postal_code" name="address_postal_code" type="text" value="<?= htmlspecialchars((string) $event['address_postal_code']) ?>"></div>
       </div>
 
       <?php if ($event['latitude'] !== '' && $event['longitude'] !== ''): ?>
-        <div class="location-status">
-          <strong>Saved Coordinates:</strong>
-          <?= htmlspecialchars((string) $event['latitude']) ?>, <?= htmlspecialchars((string) $event['longitude']) ?>
-        </div>
+        <div class="location-status"><strong>Saved Coordinates:</strong> <?= htmlspecialchars((string) $event['latitude']) ?>, <?= htmlspecialchars((string) $event['longitude']) ?></div>
       <?php else: ?>
-        <div class="location-status">
-          No saved coordinates yet.
-        </div>
+        <div class="location-status">No saved coordinates yet.</div>
       <?php endif; ?>
 
       <label for="category_id">Category</label>
       <select id="category_id" name="category_id">
         <option value="">None</option>
         <?php while ($category = mysqli_fetch_assoc($categoryResult)): ?>
-          <option
-            value="<?= (int) $category['id'] ?>"
-            <?= !empty($event['category_id']) && (int) $event['category_id'] === (int) $category['id'] ? 'selected' : '' ?>
-          >
-            <?= htmlspecialchars((string) $category['name']) ?>
-          </option>
+          <option value="<?= (int) $category['id'] ?>" <?= !empty($event['category_id']) && (int) $event['category_id'] === (int) $category['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string) $category['name']) ?></option>
         <?php endwhile; ?>
       </select>
+
+      <label for="event_cost">Cost / Admission</label>
+      <input id="event_cost" name="event_cost" type="text" value="<?= htmlspecialchars((string) ($event['event_cost'] ?? '')) ?>" placeholder="Free, $10, Members only, Donations accepted...">
 
       <label for="summary">Summary</label>
       <textarea id="summary" name="summary"><?= htmlspecialchars((string) $event['summary']) ?></textarea>
@@ -423,291 +183,71 @@ if (!empty($event['start_datetime'])) {
 
       <label for="image">Image Upload</label>
       <input id="image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp">
-
-      <?php if (!empty($event['image_path'])): ?>
-        <p>Current image:</p>
-        <img class="preview-image" src="<?= htmlspecialchars((string) $event['image_path']) ?>" alt="Current event image">
-      <?php endif; ?>
+      <?php if (!empty($event['image_path'])): ?><p>Current image:</p><img class="preview-image" src="<?= htmlspecialchars((string) $event['image_path']) ?>" alt="Current event image"><?php endif; ?>
 
       <label for="pdf">PDF Upload</label>
       <input id="pdf" name="pdf" type="file" accept=".pdf">
-
-      <?php if (!empty($event['pdf_path'])): ?>
-        <p>
-          Current PDF:
-          <a href="<?= htmlspecialchars((string) $event['pdf_path']) ?>" target="_blank" rel="noopener">
-            View current PDF
-          </a>
-        </p>
-      <?php endif; ?>
+      <?php if (!empty($event['pdf_path'])): ?><p>Current PDF: <a href="<?= htmlspecialchars((string) $event['pdf_path']) ?>" target="_blank" rel="noopener">View current PDF</a></p><?php endif; ?>
 
       <hr>
-
       <h2>Recurrence</h2>
+      <p class="note">Use only for normal generated repeat events. Leave as No for one-time events.</p>
 
-      <div class="recurrence-shell">
-        <div class="recurrence-step">
-          <label for="is_recurring_parent">Does this event repeat?</label>
-          <select id="is_recurring_parent" name="is_recurring_parent">
-            <option value="0" <?= $isRecurringSelected === '0' ? 'selected' : '' ?>>No</option>
-            <option value="1" <?= $isRecurringSelected === '1' ? 'selected' : '' ?>>Yes</option>
-          </select>
-          <p class="note">Choose “Yes” only for the parent event that defines the series.</p>
-        </div>
+      <label for="is_recurring_parent">Does this event repeat?</label>
+      <select id="is_recurring_parent" name="is_recurring_parent">
+        <option value="0" <?= empty($event['is_recurring_parent']) ? 'selected' : '' ?>>No</option>
+        <option value="1" <?= !empty($event['is_recurring_parent']) ? 'selected' : '' ?>>Yes</option>
+      </select>
 
-        <div class="recurrence-step" id="recurrence-type-step" hidden>
-          <label for="recurrence_type">Recurrence Type</label>
-          <select id="recurrence_type" name="recurrence_type">
-            <option value="">Select recurrence type</option>
-            <option value="daily" <?= $resolvedRecurrenceType === 'daily' ? 'selected' : '' ?>>Daily</option>
-            <option value="weekly" <?= $resolvedRecurrenceType === 'weekly' ? 'selected' : '' ?>>Weekly</option>
-            <option value="monthly_nth" <?= $resolvedRecurrenceType === 'monthly_nth' ? 'selected' : '' ?>>Monthly</option>
-            <option value="annual" <?= $resolvedRecurrenceType === 'annual' ? 'selected' : '' ?>>Annual</option>
-          </select>
-        </div>
+      <label for="recurrence_type">Recurrence Type</label>
+      <select id="recurrence_type" name="recurrence_type">
+        <option value="">None</option>
+        <option value="daily" <?= eventforge_selected_option($event['recurrence_type'], 'daily') ?>>Daily</option>
+        <option value="weekly" <?= eventforge_selected_option($event['recurrence_type'], 'weekly') ?>>Weekly</option>
+        <option value="monthly_nth" <?= eventforge_selected_option($event['recurrence_type'], 'monthly_nth') ?>>Monthly</option>
+        <option value="annual" <?= eventforge_selected_option($event['recurrence_type'], 'annual') ?>>Annual</option>
+      </select>
 
-        <div class="recurrence-step" id="recurrence-common-step" hidden>
-          <div class="recurrence-section">
-            <p class="section-title">Repeat Settings</p>
+      <label for="recurrence_interval">Repeat Every</label>
+      <input id="recurrence_interval" name="recurrence_interval" type="number" min="1" value="<?= htmlspecialchars((string) ($event['recurrence_interval'] ?? 1)) ?>">
 
-            <label for="recurrence_interval">Repeat Every</label>
-            <input
-              id="recurrence_interval"
-              name="recurrence_interval"
-              type="number"
-              min="1"
-              value="<?= htmlspecialchars((string) ($event['recurrence_interval'] ?? 1)) ?>"
-            >
-
-            <label for="recurrence_end_date">Recurrence End Date</label>
-            <input
-              id="recurrence_end_date"
-              name="recurrence_end_date"
-              type="date"
-              value="<?= !empty($event['recurrence_end_date']) ? htmlspecialchars((string) $event['recurrence_end_date']) : '' ?>"
-            >
-
-            <p class="note" id="recurrence-horizon-note">
-              Occurrences are generated ahead based on the selected recurrence type.
-            </p>
-          </div>
-        </div>
-
-        <div class="recurrence-section" id="recurrence-daily-section" data-recurrence-section="daily" hidden>
-          <p class="section-title">Daily Pattern</p>
-          <p class="note">This event will repeat every selected number of days from the start date.</p>
-        </div>
-
-        <div class="recurrence-section" id="recurrence-weekly-section" data-recurrence-section="weekly" hidden>
-          <p class="section-title">Weekly Pattern</p>
-          <p><strong>Repeat On</strong></p>
-          <div class="checkbox-grid">
-            <?php foreach ($weekdayOptions as $code => $label): ?>
-              <label>
-                <input
-                  type="checkbox"
-                  name="recurrence_days[]"
-                  value="<?= htmlspecialchars($code) ?>"
-                  <?= in_array($code, $selectedDays, true) ? 'checked' : '' ?>
-                  data-recurrence-weekly
-                >
-                <?= htmlspecialchars($label) ?>
-              </label>
-            <?php endforeach; ?>
-          </div>
-        </div>
-
-        <div class="recurrence-section" id="recurrence-monthly-section" data-recurrence-section="monthly_nth" hidden>
-          <p class="section-title">Monthly Pattern</p>
-
-          <label for="recurrence_week_of_month">Week of Month</label>
-          <select id="recurrence_week_of_month" name="recurrence_week_of_month" data-recurrence-monthly>
-            <option value="">Select</option>
-            <option value="first" <?= ($event['recurrence_week_of_month'] ?? '') === 'first' ? 'selected' : '' ?>>First</option>
-            <option value="second" <?= ($event['recurrence_week_of_month'] ?? '') === 'second' ? 'selected' : '' ?>>Second</option>
-            <option value="third" <?= ($event['recurrence_week_of_month'] ?? '') === 'third' ? 'selected' : '' ?>>Third</option>
-            <option value="fourth" <?= ($event['recurrence_week_of_month'] ?? '') === 'fourth' ? 'selected' : '' ?>>Fourth</option>
-            <option value="last" <?= ($event['recurrence_week_of_month'] ?? '') === 'last' ? 'selected' : '' ?>>Last</option>
-          </select>
-
-          <label for="recurrence_day_of_week">Day of Week</label>
-          <select id="recurrence_day_of_week" name="recurrence_day_of_week" data-recurrence-monthly>
-            <option value="">Select</option>
-            <option value="SU" <?= ($event['recurrence_day_of_week'] ?? '') === 'SU' ? 'selected' : '' ?>>Sunday</option>
-            <option value="MO" <?= ($event['recurrence_day_of_week'] ?? '') === 'MO' ? 'selected' : '' ?>>Monday</option>
-            <option value="TU" <?= ($event['recurrence_day_of_week'] ?? '') === 'TU' ? 'selected' : '' ?>>Tuesday</option>
-            <option value="WE" <?= ($event['recurrence_day_of_week'] ?? '') === 'WE' ? 'selected' : '' ?>>Wednesday</option>
-            <option value="TH" <?= ($event['recurrence_day_of_week'] ?? '') === 'TH' ? 'selected' : '' ?>>Thursday</option>
-            <option value="FR" <?= ($event['recurrence_day_of_week'] ?? '') === 'FR' ? 'selected' : '' ?>>Friday</option>
-            <option value="SA" <?= ($event['recurrence_day_of_week'] ?? '') === 'SA' ? 'selected' : '' ?>>Saturday</option>
-          </select>
-        </div>
-
-        <div class="recurrence-section" id="recurrence-annual-section" data-recurrence-section="annual" hidden>
-          <p class="section-title">Annual Pattern</p>
-
-          <label for="annual_pattern_mode">Annual Pattern Style</label>
-          <select id="annual_pattern_mode" name="annual_pattern_mode">
-            <option value="same_date" <?= $annualPatternMode === 'same_date' ? 'selected' : '' ?>>Same date each year</option>
-            <option value="nth_weekday" <?= $annualPatternMode === 'nth_weekday' ? 'selected' : '' ?>>Nth weekday of the month</option>
-          </select>
-
-          <div class="annual-pattern-fields" id="annual-same-date-fields">
-            <p class="note">
-              Uses the event start date as the yearly anchor<?= $annualAnchorLabel !== '' ? ': ' . htmlspecialchars($annualAnchorLabel) : '' ?>.
-            </p>
-          </div>
-
-          <div class="annual-pattern-fields" id="annual-nth-weekday-fields" hidden>
-            <label for="annual_recurrence_week_of_month">Week of Month</label>
-            <select id="annual_recurrence_week_of_month" name="annual_recurrence_week_of_month">
-              <option value="">Select</option>
-              <option value="first" <?= ($event['recurrence_week_of_month'] ?? '') === 'first' ? 'selected' : '' ?>>First</option>
-              <option value="second" <?= ($event['recurrence_week_of_month'] ?? '') === 'second' ? 'selected' : '' ?>>Second</option>
-              <option value="third" <?= ($event['recurrence_week_of_month'] ?? '') === 'third' ? 'selected' : '' ?>>Third</option>
-              <option value="fourth" <?= ($event['recurrence_week_of_month'] ?? '') === 'fourth' ? 'selected' : '' ?>>Fourth</option>
-              <option value="last" <?= ($event['recurrence_week_of_month'] ?? '') === 'last' ? 'selected' : '' ?>>Last</option>
-            </select>
-
-            <label for="annual_recurrence_day_of_week">Day of Week</label>
-            <select id="annual_recurrence_day_of_week" name="annual_recurrence_day_of_week">
-              <option value="">Select</option>
-              <option value="SU" <?= ($event['recurrence_day_of_week'] ?? '') === 'SU' ? 'selected' : '' ?>>Sunday</option>
-              <option value="MO" <?= ($event['recurrence_day_of_week'] ?? '') === 'MO' ? 'selected' : '' ?>>Monday</option>
-              <option value="TU" <?= ($event['recurrence_day_of_week'] ?? '') === 'TU' ? 'selected' : '' ?>>Tuesday</option>
-              <option value="WE" <?= ($event['recurrence_day_of_week'] ?? '') === 'WE' ? 'selected' : '' ?>>Wednesday</option>
-              <option value="TH" <?= ($event['recurrence_day_of_week'] ?? '') === 'TH' ? 'selected' : '' ?>>Thursday</option>
-              <option value="FR" <?= ($event['recurrence_day_of_week'] ?? '') === 'FR' ? 'selected' : '' ?>>Friday</option>
-              <option value="SA" <?= ($event['recurrence_day_of_week'] ?? '') === 'SA' ? 'selected' : '' ?>>Saturday</option>
-            </select>
-          </div>
-
-          <p class="note">Annual recurrences generate up to 5 years ahead or the recurrence end date, whichever comes first.</p>
-        </div>
+      <p><strong>Weekly Repeat On</strong></p>
+      <div class="checkbox-grid">
+        <?php foreach ($weekdayOptions as $code => $label): ?>
+          <label><input type="checkbox" name="recurrence_days[]" value="<?= htmlspecialchars($code) ?>" <?= eventforge_checked_option($selectedDays, $code) ?>> <?= htmlspecialchars($label) ?></label>
+        <?php endforeach; ?>
       </div>
+
+      <label for="recurrence_week_of_month">Week of Month</label>
+      <select id="recurrence_week_of_month" name="recurrence_week_of_month">
+        <option value="">Select</option>
+        <option value="first" <?= eventforge_selected_option($event['recurrence_week_of_month'], 'first') ?>>First</option>
+        <option value="second" <?= eventforge_selected_option($event['recurrence_week_of_month'], 'second') ?>>Second</option>
+        <option value="third" <?= eventforge_selected_option($event['recurrence_week_of_month'], 'third') ?>>Third</option>
+        <option value="fourth" <?= eventforge_selected_option($event['recurrence_week_of_month'], 'fourth') ?>>Fourth</option>
+        <option value="last" <?= eventforge_selected_option($event['recurrence_week_of_month'], 'last') ?>>Last</option>
+      </select>
+
+      <label for="recurrence_day_of_week">Day of Week</label>
+      <select id="recurrence_day_of_week" name="recurrence_day_of_week">
+        <option value="">Select</option>
+        <?php foreach ($weekdayOptions as $code => $label): ?>
+          <option value="<?= htmlspecialchars($code) ?>" <?= eventforge_selected_option($event['recurrence_day_of_week'], $code) ?>><?= htmlspecialchars($label) ?></option>
+        <?php endforeach; ?>
+      </select>
+
+      <input type="hidden" name="annual_pattern_mode" value="same_date">
+      <input type="hidden" name="annual_mode" value="date">
+      <input type="hidden" name="annual_recurrence_week_of_month" value="">
+      <input type="hidden" name="annual_recurrence_day_of_week" value="">
+
+      <label for="recurrence_end_date">Recurrence End Date</label>
+      <input id="recurrence_end_date" name="recurrence_end_date" type="date" value="<?= !empty($event['recurrence_end_date']) ? htmlspecialchars((string) $event['recurrence_end_date']) : '' ?>">
 
       <div class="actions">
         <button type="submit">Save Event</button>
       </div>
     </form>
   </div>
-
-  <script>
-    (function () {
-      const recurringSelect = document.getElementById('is_recurring_parent');
-      const typeStep = document.getElementById('recurrence-type-step');
-      const commonStep = document.getElementById('recurrence-common-step');
-      const typeSelect = document.getElementById('recurrence_type');
-      const sections = document.querySelectorAll('[data-recurrence-section]');
-      const horizonNote = document.getElementById('recurrence-horizon-note');
-
-      const weeklyInputs = Array.from(document.querySelectorAll('[data-recurrence-weekly]'));
-      const monthlyInputs = Array.from(document.querySelectorAll('[data-recurrence-monthly]'));
-      const annualPatternMode = document.getElementById('annual_pattern_mode');
-      const annualSameDateFields = document.getElementById('annual-same-date-fields');
-      const annualNthWeekdayFields = document.getElementById('annual-nth-weekday-fields');
-      const annualWeekOfMonth = document.getElementById('annual_recurrence_week_of_month');
-      const annualDayOfWeek = document.getElementById('annual_recurrence_day_of_week');
-
-      function disableInputs(inputs, disabled) {
-        inputs.forEach(function (input) {
-          input.disabled = disabled;
-        });
-      }
-
-      function updateAnnualPatternUi() {
-        if (!annualPatternMode || typeSelect.value !== 'annual' || recurringSelect.value !== '1') {
-          if (annualSameDateFields) annualSameDateFields.hidden = false;
-          if (annualNthWeekdayFields) annualNthWeekdayFields.hidden = true;
-          if (annualWeekOfMonth) annualWeekOfMonth.disabled = true;
-          if (annualDayOfWeek) annualDayOfWeek.disabled = true;
-          return;
-        }
-
-        const mode = annualPatternMode.value;
-
-        if (mode === 'nth_weekday') {
-          annualSameDateFields.hidden = true;
-          annualNthWeekdayFields.hidden = false;
-          annualWeekOfMonth.disabled = false;
-          annualDayOfWeek.disabled = false;
-        } else {
-          annualSameDateFields.hidden = false;
-          annualNthWeekdayFields.hidden = true;
-          annualWeekOfMonth.disabled = true;
-          annualDayOfWeek.disabled = true;
-        }
-      }
-
-      function updateRecurrenceUi() {
-        const isRecurring = recurringSelect.value === '1';
-        const type = typeSelect.value;
-
-        typeStep.hidden = !isRecurring;
-        commonStep.hidden = !isRecurring || type === '';
-
-        if (!isRecurring) {
-          typeSelect.disabled = true;
-          sections.forEach(function (section) {
-            section.hidden = true;
-          });
-
-          disableInputs(weeklyInputs, true);
-          disableInputs(monthlyInputs, true);
-
-          if (annualPatternMode) annualPatternMode.disabled = true;
-          if (annualWeekOfMonth) annualWeekOfMonth.disabled = true;
-          if (annualDayOfWeek) annualDayOfWeek.disabled = true;
-
-          horizonNote.textContent = 'Occurrences are generated ahead based on the selected recurrence type.';
-          updateAnnualPatternUi();
-          return;
-        }
-
-        typeSelect.disabled = false;
-
-        sections.forEach(function (section) {
-          const sectionType = section.getAttribute('data-recurrence-section');
-          section.hidden = sectionType !== type;
-        });
-
-        disableInputs(weeklyInputs, type !== 'weekly');
-        disableInputs(monthlyInputs, type !== 'monthly_nth');
-
-        if (annualPatternMode) {
-          annualPatternMode.disabled = type !== 'annual';
-        }
-
-        switch (type) {
-          case 'daily':
-            horizonNote.textContent = 'Daily recurrences generate up to 1 year ahead or the end date, whichever comes first.';
-            break;
-          case 'weekly':
-            horizonNote.textContent = 'Weekly recurrences generate up to 1 year ahead or the end date, whichever comes first.';
-            break;
-          case 'monthly_nth':
-            horizonNote.textContent = 'Monthly recurrences generate up to 1 year ahead or the end date, whichever comes first.';
-            break;
-          case 'annual':
-            horizonNote.textContent = 'Annual recurrences generate up to 5 years ahead or the end date, whichever comes first.';
-            break;
-          default:
-            horizonNote.textContent = 'Occurrences are generated ahead based on the selected recurrence type.';
-            break;
-        }
-
-        updateAnnualPatternUi();
-      }
-
-      recurringSelect.addEventListener('change', updateRecurrenceUi);
-      typeSelect.addEventListener('change', updateRecurrenceUi);
-
-      if (annualPatternMode) {
-        annualPatternMode.addEventListener('change', updateAnnualPatternUi);
-      }
-
-      updateRecurrenceUi();
-    })();
-  </script>
 </body>
 </html>

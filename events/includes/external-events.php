@@ -295,6 +295,76 @@ function eventforge_non_empty_external_description($value): bool
     return trim((string) $value) !== '';
 }
 
+
+function eventforge_external_cost_candidate_from_value($value): string
+{
+    if (is_scalar($value)) {
+        return eventforge_clean_external_html_text((string) $value);
+    }
+
+    return '';
+}
+
+function eventforge_external_find_cost_recursive(array $item): string
+{
+    $preferredKeys = [
+        'cost',
+        'eventCost',
+        'event_cost',
+        'costText',
+        'cost_text',
+        'fee',
+        'fees',
+        'price',
+        'admission',
+        'registrationFee',
+        'registration_fee',
+    ];
+
+    foreach ($preferredKeys as $key) {
+        if (array_key_exists($key, $item)) {
+            $candidate = eventforge_external_cost_candidate_from_value($item[$key]);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+    }
+
+    foreach ($item as $key => $value) {
+        $keyText = strtolower((string) $key);
+        $looksLikeCost = strpos($keyText, 'cost') !== false
+            || strpos($keyText, 'fee') !== false
+            || strpos($keyText, 'price') !== false
+            || strpos($keyText, 'admission') !== false;
+
+        if ($looksLikeCost) {
+            $candidate = eventforge_external_cost_candidate_from_value($value);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+    }
+
+    foreach ($item as $value) {
+        if (is_array($value)) {
+            $candidate = eventforge_external_find_cost_recursive($value);
+
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+    }
+
+    return '';
+}
+
+function eventforge_chambermate_cost_text(array $item): string
+{
+    return eventforge_external_find_cost_recursive($item);
+}
+
 function eventforge_normalize_chambermate_event(array $item): ?array
 {
     $externalId = eventforge_external_array_get($item, ['activityKey']);
@@ -347,6 +417,7 @@ function eventforge_normalize_chambermate_event(array $item): ?array
         'description' => $description,
         'image_path' => eventforge_chambermate_image_url($item),
         'external_url' => eventforge_external_array_get($item, ['eventDetailUrl', 'eventUrl', 'registrationUrl', 'learnMoreURL']),
+        'event_cost' => eventforge_chambermate_cost_text($item),
         'external_payload' => $payloadJson !== false ? $payloadJson : '',
     ];
 }
@@ -420,6 +491,7 @@ function eventforge_external_event_hash(array $event): string
         'description',
         'image_path',
         'external_url',
+        'event_cost',
         'latitude',
         'longitude',
     ];
@@ -433,21 +505,49 @@ function eventforge_external_event_hash(array $event): string
     return hash('sha256', json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '');
 }
 
-function eventforge_find_existing_external_event(mysqli $connection, string $source, string $externalId): ?array
+function eventforge_sql_nullable_string(mysqli $connection, $value): string
 {
-    $stmt = mysqli_prepare($connection, "SELECT id, external_hash, slug FROM events WHERE external_source = ? AND external_id = ? LIMIT 1");
-
-    if (!$stmt) {
-        throw new RuntimeException('Could not prepare external event lookup.');
+    if ($value === null || trim((string) $value) === '') {
+        return 'NULL';
     }
 
-    mysqli_stmt_bind_param($stmt, 'ss', $source, $externalId);
-    mysqli_stmt_execute($stmt);
+    return "'" . mysqli_real_escape_string($connection, (string) $value) . "'";
+}
 
-    $result = mysqli_stmt_get_result($stmt);
-    $row = $result ? mysqli_fetch_assoc($result) : null;
+function eventforge_sql_string(mysqli $connection, $value): string
+{
+    return "'" . mysqli_real_escape_string($connection, (string) $value) . "'";
+}
 
-    mysqli_stmt_close($stmt);
+function eventforge_sql_coordinate($value): string
+{
+    if ($value === null || $value === '' || !is_numeric($value)) {
+        return 'NULL';
+    }
+
+    return number_format((float) $value, 7, '.', '');
+}
+
+function eventforge_find_existing_external_event(mysqli $connection, string $source, string $externalId): ?array
+{
+    $sourceSql = mysqli_real_escape_string($connection, $source);
+    $externalIdSql = mysqli_real_escape_string($connection, $externalId);
+
+    $result = mysqli_query($connection, "
+        SELECT id, external_hash, slug
+        FROM events
+        WHERE external_source = '{$sourceSql}'
+          AND external_id = '{$externalIdSql}'
+        LIMIT 1
+    ");
+
+    if (!$result) {
+        throw new RuntimeException('External event lookup failed: ' . mysqli_error($connection));
+    }
+
+    $row = mysqli_fetch_assoc($result);
+
+    mysqli_free_result($result);
 
     return $row ?: null;
 }
@@ -475,23 +575,47 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
     $description = (string) ($event['description'] ?? '');
     $imagePath = (string) ($event['image_path'] ?? '');
     $externalUrl = (string) ($event['external_url'] ?? '');
+    $eventCost = (string) ($event['event_cost'] ?? '');
     $payload = (string) ($event['external_payload'] ?? '');
-    $latitude = $event['latitude'];
-    $longitude = $event['longitude'];
+    $latitude = $event['latitude'] ?? null;
+    $longitude = $event['longitude'] ?? null;
+
+    $titleSql = eventforge_sql_string($connection, $title);
+    $startSql = eventforge_sql_string($connection, $start);
+    $endSql = eventforge_sql_nullable_string($connection, $end);
+    $locationSql = eventforge_sql_string($connection, $location);
+    $address1Sql = eventforge_sql_string($connection, $address1);
+    $address2Sql = eventforge_sql_string($connection, $address2);
+    $citySql = eventforge_sql_string($connection, $city);
+    $stateSql = eventforge_sql_string($connection, $state);
+    $postalSql = eventforge_sql_string($connection, $postal);
+    $latitudeSql = eventforge_sql_coordinate($latitude);
+    $longitudeSql = eventforge_sql_coordinate($longitude);
+    $summarySql = eventforge_sql_string($connection, $summary);
+    $descriptionSql = eventforge_sql_string($connection, $description);
+    $imagePathSql = eventforge_sql_string($connection, $imagePath);
+    $externalUrlSql = eventforge_sql_string($connection, $externalUrl);
+    $eventCostSql = eventforge_sql_string($connection, $eventCost);
+    $sourceSql = eventforge_sql_string($connection, $source);
+    $externalIdSql = eventforge_sql_string($connection, $externalId);
+    $hashSql = eventforge_sql_string($connection, $hash);
+    $payloadSql = eventforge_sql_string($connection, $payload);
 
     if ($existing) {
         $eventId = (int) $existing['id'];
 
         if ((string) ($existing['external_hash'] ?? '') === $hash) {
-            $stmt = mysqli_prepare($connection, "UPDATE events SET external_synced_at = NOW(), external_payload = ? WHERE id = ? LIMIT 1");
+            $sql = "
+                UPDATE events
+                SET external_synced_at = NOW(),
+                    external_payload = {$payloadSql}
+                WHERE id = {$eventId}
+                LIMIT 1
+            ";
 
-            if (!$stmt) {
-                throw new RuntimeException('Could not prepare external event touch update.');
+            if (!mysqli_query($connection, $sql)) {
+                throw new RuntimeException('External event touch update failed: ' . mysqli_error($connection));
             }
-
-            mysqli_stmt_bind_param($stmt, 'si', $payload, $eventId);
-            mysqli_stmt_execute($stmt);
-            mysqli_stmt_close($stmt);
 
             return 'unchanged';
         }
@@ -502,100 +626,64 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
             $slug = eventforge_unique_event_slug($connection, $title, $eventId);
         }
 
+        $slugSql = eventforge_sql_string($connection, $slug);
+
         $sql = "
             UPDATE events
-            SET title = ?, slug = ?, start_datetime = ?, end_datetime = ?, all_day = ?,
-                location = ?, address_line_1 = ?, address_line_2 = ?, address_city = ?,
-                address_state = ?, address_postal_code = ?, latitude = ?, longitude = ?,
-                summary = ?, description = ?, image_path = ?, external_url = ?,
-                external_hash = ?, external_payload = ?, external_synced_at = NOW()
-            WHERE id = ?
+            SET title = {$titleSql},
+                slug = {$slugSql},
+                start_datetime = {$startSql},
+                end_datetime = {$endSql},
+                all_day = {$allDay},
+                location = {$locationSql},
+                address_line_1 = {$address1Sql},
+                address_line_2 = {$address2Sql},
+                address_city = {$citySql},
+                address_state = {$stateSql},
+                address_postal_code = {$postalSql},
+                latitude = {$latitudeSql},
+                longitude = {$longitudeSql},
+                summary = {$summarySql},
+                description = {$descriptionSql},
+                image_path = {$imagePathSql},
+                external_url = {$externalUrlSql},
+                event_cost = {$eventCostSql},
+                external_hash = {$hashSql},
+                external_payload = {$payloadSql},
+                external_synced_at = NOW()
+            WHERE id = {$eventId}
             LIMIT 1
         ";
-        $stmt = mysqli_prepare($connection, $sql);
 
-        if (!$stmt) {
-            throw new RuntimeException('Could not prepare external event update.');
+        if (!mysqli_query($connection, $sql)) {
+            throw new RuntimeException('External event update failed: ' . mysqli_error($connection));
         }
-
-        mysqli_stmt_bind_param(
-            $stmt,
-            'ssssissssssddssssssi',
-            $title,
-            $slug,
-            $start,
-            $end,
-            $allDay,
-            $location,
-            $address1,
-            $address2,
-            $city,
-            $state,
-            $postal,
-            $latitude,
-            $longitude,
-            $summary,
-            $description,
-            $imagePath,
-            $externalUrl,
-            $hash,
-            $payload,
-            $eventId
-        );
-
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_close($stmt);
 
         return 'updated';
     }
 
     $slug = eventforge_unique_event_slug($connection, $title);
+    $slugSql = eventforge_sql_string($connection, $slug);
 
     $sql = "
         INSERT INTO events (
             title, slug, start_datetime, end_datetime, all_day, location,
             address_line_1, address_line_2, address_city, address_state,
             address_postal_code, latitude, longitude, summary, description,
-            image_path, external_url, external_source, external_id, external_hash,
-            external_payload, external_synced_at, is_published, is_canceled
+            image_path, external_url, event_cost, external_source, external_id,
+            external_hash, external_payload, external_synced_at, is_published, is_canceled
         ) VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0
+            {$titleSql}, {$slugSql}, {$startSql}, {$endSql}, {$allDay}, {$locationSql},
+            {$address1Sql}, {$address2Sql}, {$citySql}, {$stateSql},
+            {$postalSql}, {$latitudeSql}, {$longitudeSql}, {$summarySql}, {$descriptionSql},
+            {$imagePathSql}, {$externalUrlSql}, {$eventCostSql}, {$sourceSql}, {$externalIdSql},
+            {$hashSql}, {$payloadSql}, NOW(), 0, 0
         )
     ";
-    $stmt = mysqli_prepare($connection, $sql);
 
-    if (!$stmt) {
-        throw new RuntimeException('Could not prepare external event insert.');
+    if (!mysqli_query($connection, $sql)) {
+        throw new RuntimeException('External event insert failed: ' . mysqli_error($connection));
     }
-
-    mysqli_stmt_bind_param(
-        $stmt,
-        'ssssissssssddssssssss',
-        $title,
-        $slug,
-        $start,
-        $end,
-        $allDay,
-        $location,
-        $address1,
-        $address2,
-        $city,
-        $state,
-        $postal,
-        $latitude,
-        $longitude,
-        $summary,
-        $description,
-        $imagePath,
-        $externalUrl,
-        $source,
-        $externalId,
-        $hash,
-        $payload
-    );
-
-    mysqli_stmt_execute($stmt);
-    mysqli_stmt_close($stmt);
 
     return 'inserted';
 }

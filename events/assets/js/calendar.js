@@ -11,29 +11,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const modalTitle = document.getElementById('modal-title');
   const modalDate = document.getElementById('modal-datetime');
-
+  const modalCostWrap = document.getElementById('modal-cost-wrap');
+  const modalCost = document.getElementById('modal-cost');
   const modalLocationWrap = document.getElementById('modal-location-wrap');
   const modalLocation = document.getElementById('modal-location');
-
   const modalImageWrap = document.getElementById('modal-image-wrap');
   const modalImage = document.getElementById('modal-image');
-
   const modalDescriptionWrap = document.getElementById('modal-description-wrap');
   const modalDescription = document.getElementById('modal-description');
-
   const modalPdfWrap = document.getElementById('modal-pdf-wrap');
   const modalPdf = document.getElementById('modal-pdf');
-
   const modalExternalWrap = document.getElementById('modal-external-wrap');
   const modalExternal = document.getElementById('modal-external');
-
   const modalCalendarWrap = document.getElementById('modal-calendar-wrap');
   const modalCalendar = document.getElementById('modal-calendar');
-
   const modalShareWrap = document.getElementById('modal-share-wrap');
   const modalShareButton = document.getElementById('modal-share-button');
   const modalShareStatus = document.getElementById('modal-share-status');
-
   const modalLocationButtonWrap = document.getElementById('modal-location-button-wrap');
   const modalLocationButton = document.getElementById('modal-location-button');
 
@@ -47,6 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const locationModalNote = document.getElementById('location-modal-note');
   const locationModalError = document.getElementById('location-modal-error');
 
+  const mobileCalendarQuery = window.matchMedia('(max-width: 768px)');
+
   let activeEventForShare = null;
   let activeEventForLocation = null;
   let shareStatusTimeout = null;
@@ -55,8 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let locationMarker = null;
   let mapboxAssetsRequested = false;
   let mapboxAssetsPromise = null;
-
-  const mobileCalendarQuery = window.matchMedia('(max-width: 768px)');
 
   function getEventForgeBasePath() {
     const script = document.currentScript || Array.from(document.scripts).find((item) => {
@@ -72,9 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (markerIndex !== -1) {
           return scriptUrl.pathname.substring(0, markerIndex + '/events'.length);
         }
-      } catch (error) {
-        // Fall through to path fallback.
-      }
+      } catch (error) {}
     }
 
     const pathMarker = '/events/';
@@ -103,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  const clearShareStatus = () => {
+  function clearShareStatus() {
     if (shareStatusTimeout) {
       window.clearTimeout(shareStatusTimeout);
       shareStatusTimeout = null;
@@ -115,12 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
       modalShareStatus.classList.remove('is-error');
       modalShareStatus.classList.remove('is-success');
     }
-  };
+  }
 
-  const setShareStatus = (message, isError = false) => {
-    if (!modalShareStatus) {
-      return;
-    }
+  function setShareStatus(message, isError = false) {
+    if (!modalShareStatus) return;
 
     if (shareStatusTimeout) {
       window.clearTimeout(shareStatusTimeout);
@@ -134,9 +124,9 @@ document.addEventListener('DOMContentLoaded', () => {
     shareStatusTimeout = window.setTimeout(() => {
       clearShareStatus();
     }, 3000);
-  };
+  }
 
-  const closeLocationModal = () => {
+  function closeLocationModal() {
     if (locationModal) {
       locationModal.hidden = true;
     }
@@ -147,9 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
       locationModalError.hidden = true;
       locationModalError.textContent = '';
     }
-  };
+  }
 
-  const closeModal = () => {
+  function closeModal() {
     closeLocationModal();
 
     if (modal) modal.hidden = true;
@@ -166,17 +156,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     clearShareStatus();
-  };
+  }
 
   function getSafeExternalUrl(value) {
-    if (typeof value !== 'string') {
-      return '';
-    }
+    if (typeof value !== 'string') return '';
 
     const trimmed = value.trim();
-    if (trimmed === '') {
-      return '';
-    }
+    if (trimmed === '') return '';
 
     try {
       const parsed = new URL(trimmed, window.location.origin);
@@ -192,15 +178,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function buildEventShareUrl(event) {
-    if (!event || typeof event.url !== 'string') {
-      return '';
-    }
+    if (!event || typeof event.url !== 'string') return '';
 
     const rawUrl = event.url.trim();
-
-    if (rawUrl === '') {
-      return '';
-    }
+    if (rawUrl === '') return '';
 
     try {
       const parsed = new URL(rawUrl, window.location.origin);
@@ -216,13 +197,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function buildEventIcsUrl(event) {
-    if (!event || !event.id) {
-      return '';
-    }
-
-    const eventId = encodeURIComponent(String(event.id));
-
-    return eventForgePath(`ics.php?id=${eventId}`);
+    if (!event || !event.id) return '';
+    return eventForgePath(`ics.php?id=${encodeURIComponent(String(event.id))}`);
   }
 
   function buildAddressLines(props) {
@@ -243,17 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const city = typeof props.addressCity === 'string' ? props.addressCity.trim() : '';
     const state = typeof props.addressState === 'string' ? props.addressState.trim() : '';
     const postal = typeof props.addressPostalCode === 'string' ? props.addressPostalCode.trim() : '';
-
     const cityStatePostalParts = [];
-    if (city !== '') {
-      cityStatePostalParts.push(city);
-    }
-    if (state !== '') {
-      cityStatePostalParts.push(state);
-    }
-    if (postal !== '') {
-      cityStatePostalParts.push(postal);
-    }
+
+    if (city !== '') cityStatePostalParts.push(city);
+    if (state !== '') cityStatePostalParts.push(state);
+    if (postal !== '') cityStatePostalParts.push(postal);
 
     if (cityStatePostalParts.length > 0) {
       lines.push(cityStatePostalParts.join(', ').replace(', ,', ', '));
@@ -263,9 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function replaceWithTextLines(element, lines) {
-    if (!element) {
-      return;
-    }
+    if (!element) return;
 
     element.replaceChildren();
 
@@ -279,9 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getSafeHexColor(value, fallback = '#cccccc') {
-    if (typeof value !== 'string') {
-      return fallback;
-    }
+    if (typeof value !== 'string') return fallback;
 
     const trimmed = value.trim();
 
@@ -291,9 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function eventHasUsableCoordinates(event) {
-    if (!event || !event.extendedProps) {
-      return false;
-    }
+    if (!event || !event.extendedProps) return false;
 
     const lat = event.extendedProps.latitude;
     const lng = event.extendedProps.longitude;
@@ -307,9 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function formatCalendarEventTime(event) {
-    if (!event || !event.start || event.allDay) {
-      return '';
-    }
+    if (!event || !event.start || event.allDay) return '';
 
     const timeOptions = {
       hour: 'numeric',
@@ -464,11 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function openLocationModal(event) {
     const props = event.extendedProps || {};
 
-    if (!eventHasUsableCoordinates(event)) {
-      return;
-    }
-
-    if (!mapboxPublicToken) {
+    if (!eventHasUsableCoordinates(event) || !mapboxPublicToken) {
       return;
     }
 
@@ -514,9 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         await navigator.clipboard.writeText(text);
         return true;
-      } catch (error) {
-        // fall through
-      }
+      } catch (error) {}
     }
 
     const helper = document.createElement('textarea');
@@ -676,6 +632,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    if (modalCostWrap && modalCost) {
+      if (typeof props.cost === 'string' && props.cost.trim() !== '') {
+        modalCost.textContent = props.cost.trim();
+        modalCostWrap.hidden = false;
+      } else {
+        modalCost.textContent = '';
+        modalCostWrap.hidden = true;
+      }
+    }
+
     if (modalLocationWrap && modalLocation) {
       if (props.location) {
         modalLocation.textContent = props.location;
@@ -762,9 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyCalendarThemeVariables(themeVars, scope = document.documentElement) {
-    if (!themeVars || typeof themeVars !== 'object' || !scope) {
-      return;
-    }
+    if (!themeVars || typeof themeVars !== 'object' || !scope) return;
 
     Object.entries(themeVars).forEach(([key, value]) => {
       if (typeof value === 'string' && value.trim() !== '') {
@@ -780,16 +744,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (locationBackdrop) locationBackdrop.addEventListener('click', closeLocationModal);
 
   document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') {
-      return;
-    }
+    if (event.key !== 'Escape') return;
 
-    if (!locationModal.hidden) {
+    if (locationModal && !locationModal.hidden) {
       closeLocationModal();
       return;
     }
 
-    if (!modal.hidden) {
+    if (modal && !modal.hidden) {
       closeModal();
     }
   });
@@ -854,7 +816,6 @@ document.addEventListener('DOMContentLoaded', () => {
     dayMaxEvents: true,
     eventDisplay: 'block',
     eventContent: renderCalendarEventContent,
-
     eventDidMount(info) {
       const props = info.event.extendedProps || {};
       const isCanceled = !!props.isCanceled;
@@ -882,12 +843,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
     },
-
     eventClick(info) {
       info.jsEvent.preventDefault();
       openEventModal(info.event);
     },
-
     eventsSet() {
       if (linkedEventOpened || !linkedEventId) return;
 
@@ -1008,6 +967,22 @@ function injectPoweredBy(version, releaseChannel = '') {
   el.textContent = `Powered by Event Forge v${version}${channelLabel}`;
 }
 
+function eventForgeActionIcon(type) {
+  const paths = {
+    pdf: 'M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Zm0 1.5L17.5 7H14ZM7 3.5h5.5V8a.5.5 0 0 0 .5.5h4.5V20a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V4A.5.5 0 0 1 7 3.5Zm2.25 8.75h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Zm0 3h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Z',
+    external: 'M10 4.75A.75.75 0 0 1 10.75 4h8.5A.75.75 0 0 1 20 4.75v8.5a.75.75 0 0 1-1.5 0V6.56l-8.97 8.97a.75.75 0 1 1-1.06-1.06l8.97-8.97h-6.69A.75.75 0 0 1 10 4.75ZM5.75 7A1.75 1.75 0 0 0 4 8.75v9.5C4 19.22 4.78 20 5.75 20h9.5A1.75 1.75 0 0 0 17 18.25V11.5a.75.75 0 0 0-1.5 0v6.75a.25.25 0 0 1-.25.25h-9.5a.25.25 0 0 1-.25-.25v-9.5a.25.25 0 0 1 .25-.25H12.5A.75.75 0 0 0 12.5 7Z',
+    calendar: 'M7.25 2.75a.75.75 0 0 1 .75.75V5h8V3.5a.75.75 0 0 1 1.5 0V5h1.25A2.25 2.25 0 0 1 21 7.25v10.5A2.25 2.25 0 0 1 18.75 20H5.25A2.25 2.25 0 0 1 3 17.75V7.25A2.25 2.25 0 0 1 5.25 5H6.5V3.5a.75.75 0 0 1 .75-.75ZM4.5 9v8.75c0 .41.34.75.75.75h13.5c.41 0 .75-.34.75-.75V9h-15Zm3.75 3h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1 0-1.5Zm0 3h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Z',
+    location: 'M12 2.5c-3.31 0-6 2.58-6 5.76 0 4.39 5.11 10.4 5.33 10.65a.86.86 0 0 0 1.34 0c.22-.25 5.33-6.26 5.33-10.65 0-3.18-2.69-5.76-6-5.76Zm0 8.1c-1.33 0-2.4-1.03-2.4-2.3S10.67 6 12 6s2.4 1.03 2.4 2.3-1.07 2.3-2.4 2.3Z',
+    share: 'M18 16a3 3 0 0 0-2.39 1.19l-6.77-3.38a3.12 3.12 0 0 0 0-1.62l6.77-3.38A3 3 0 1 0 15 7a3.12 3.12 0 0 0 .06.59L8.29 10.97a3 3 0 1 0 0 2.06l6.77 3.38A3.12 3.12 0 0 0 15 17a3 3 0 1 0 3-1Z'
+  };
+
+  return `
+    <svg class="event-modal-action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="${paths[type] || paths.external}" fill="currentColor" />
+    </svg>
+  `;
+}
+
 function ensureEventModal() {
   let modal = document.getElementById('event-modal');
 
@@ -1025,6 +1000,11 @@ function ensureEventModal() {
 
         <p id="modal-datetime"></p>
 
+        <p id="modal-cost-wrap" hidden>
+          <strong>Cost:</strong>
+          <span id="modal-cost"></span>
+        </p>
+
         <p id="modal-location-wrap" hidden>
           <strong>Location:</strong>
           <span id="modal-location"></span>
@@ -1041,90 +1021,35 @@ function ensureEventModal() {
         <div class="event-modal-actions">
           <p id="modal-pdf-wrap" hidden>
             <a id="modal-pdf" class="event-modal-action-link event-modal-action-tile" href="#" target="_blank" rel="noopener">
-              <svg
-                class="event-modal-action-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path
-                  d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Zm0 1.5L17.5 7H14ZM7 3.5h5.5V8a.5.5 0 0 0 .5.5h4.5V20a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V4A.5.5 0 0 1 7 3.5Zm2.25 8.75h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Zm0 3h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Z"
-                  fill="currentColor"
-                />
-              </svg>
+              ${eventForgeActionIcon('pdf')}
               <span class="event-modal-action-label">View Event Flyer</span>
             </a>
           </p>
 
           <p id="modal-external-wrap" hidden>
             <a id="modal-external" class="event-modal-action-link event-modal-action-tile" href="#" target="_blank" rel="noopener">
-              <svg
-                class="event-modal-action-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path
-                  d="M10 4.75A.75.75 0 0 1 10.75 4h8.5A.75.75 0 0 1 20 4.75v8.5a.75.75 0 0 1-1.5 0V6.56l-8.97 8.97a.75.75 0 1 1-1.06-1.06l8.97-8.97h-6.69A.75.75 0 0 1 10 4.75ZM5.75 7A1.75 1.75 0 0 0 4 8.75v9.5C4 19.22 4.78 20 5.75 20h9.5A1.75 1.75 0 0 0 17 18.25V11.5a.75.75 0 0 0-1.5 0v6.75a.25.25 0 0 1-.25.25h-9.5a.25.25 0 0 1-.25-.25v-9.5a.25.25 0 0 1 .25-.25H12.5A.75.75 0 0 0 12.5 7Z"
-                  fill="currentColor"
-                />
-              </svg>
+              ${eventForgeActionIcon('external')}
               <span class="event-modal-action-label">More Info</span>
             </a>
           </p>
 
           <p id="modal-calendar-wrap" hidden>
             <a id="modal-calendar" class="event-modal-action-link event-modal-action-tile" href="#" target="_blank" rel="noopener">
-              <svg
-                class="event-modal-action-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path
-                  d="M7.25 2.75a.75.75 0 0 1 .75.75V5h8V3.5a.75.75 0 0 1 1.5 0V5h1.25A2.25 2.25 0 0 1 21 7.25v10.5A2.25 2.25 0 0 1 18.75 20H5.25A2.25 2.25 0 0 1 3 17.75V7.25A2.25 2.25 0 0 1 5.25 5H6.5V3.5a.75.75 0 0 1 .75-.75ZM4.5 9v8.75c0 .41.34.75.75.75h13.5c.41 0 .75-.34.75-.75V9h-15Zm3.75 3h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1 0-1.5Zm0 3h5.5a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5Z"
-                  fill="currentColor"
-                />
-              </svg>
+              ${eventForgeActionIcon('calendar')}
               <span class="event-modal-action-label">Add to Calendar</span>
             </a>
           </p>
 
           <p id="modal-location-button-wrap" hidden>
             <button id="modal-location-button" class="event-modal-action-button event-modal-action-tile" type="button">
-              <svg
-                class="event-modal-action-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path
-                  d="M12 2.5c-3.31 0-6 2.58-6 5.76 0 4.39 5.11 10.4 5.33 10.65a.86.86 0 0 0 1.34 0c.22-.25 5.33-6.26 5.33-10.65 0-3.18-2.69-5.76-6-5.76Zm0 8.1c-1.33 0-2.4-1.03-2.4-2.3S10.67 6 12 6s2.4 1.03 2.4 2.3-1.07 2.3-2.4 2.3Z"
-                  fill="currentColor"
-                />
-              </svg>
+              ${eventForgeActionIcon('location')}
               <span class="event-modal-action-label">View Location</span>
             </button>
           </p>
 
           <p id="modal-share-wrap" hidden>
             <button id="modal-share-button" class="event-modal-action-button event-modal-action-tile" type="button">
-              <svg
-                class="event-modal-action-icon"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                focusable="false"
-              >
-                <path
-                  d="M18 16a3 3 0 0 0-2.39 1.19l-6.77-3.38a3.12 3.12 0 0 0 0-1.62l6.77-3.38A3 3 0 1 0 15 7a3.12 3.12 0 0 0 .06.59L8.29 10.97a3 3 0 1 0 0 2.06l6.77 3.38A3.12 3.12 0 0 0 15 17a3 3 0 1 0 3-1Z"
-                  fill="currentColor"
-                />
-              </svg>
+              ${eventForgeActionIcon('share')}
               <span class="event-modal-action-label">Share Event</span>
             </button>
           </p>

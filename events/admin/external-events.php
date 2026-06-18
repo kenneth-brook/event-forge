@@ -20,6 +20,23 @@ if (!can_sync_external_events() && !is_admin()) {
     exit('Access denied.');
 }
 
+function eventforge_admin_column_exists(mysqli $connection, string $table, string $column): bool
+{
+    $tableEsc = mysqli_real_escape_string($connection, $table);
+    $columnEsc = mysqli_real_escape_string($connection, $column);
+
+    $result = mysqli_query($connection, "
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = '{$tableEsc}'
+          AND column_name = '{$columnEsc}'
+        LIMIT 1
+    ");
+
+    return $result && mysqli_num_rows($result) > 0;
+}
+
 $enabled = eventforge_external_events_enabled($connection);
 $provider = eventforge_get_external_events_provider($connection);
 $providerDefinition = eventforge_get_external_events_provider_definition($connection);
@@ -27,8 +44,21 @@ $providers = eventforge_external_event_providers();
 $feedUrl = eventforge_get_external_events_feed_url($connection);
 $lastSyncAt = eventforge_get_system_value($connection, 'external_events_last_sync_at') ?? '';
 $lastSyncStatsRaw = eventforge_get_system_value($connection, 'external_events_last_sync_stats') ?? '';
-$lastSyncStats = json_decode($lastSyncStatsRaw, true);
+$lastSyncStats = json_decode((string) $lastSyncStatsRaw, true);
+$lastSyncError = trim((string) (eventforge_get_system_value($connection, 'external_events_last_sync_error') ?? ''));
+$urlSyncError = trim((string) ($_GET['sync_error'] ?? ''));
+
+if ($urlSyncError !== '') {
+    $lastSyncError = $urlSyncError;
+}
+
 $status = trim((string) ($_GET['status'] ?? ''));
+
+$costColumnExists = eventforge_admin_column_exists($connection, 'events', 'event_cost');
+$externalSourceColumnExists = eventforge_admin_column_exists($connection, 'events', 'external_source');
+$externalIdColumnExists = eventforge_admin_column_exists($connection, 'events', 'external_id');
+$latitudeColumnExists = eventforge_admin_column_exists($connection, 'events', 'latitude');
+$longitudeColumnExists = eventforge_admin_column_exists($connection, 'events', 'longitude');
 ?>
 <!doctype html>
 <html lang="en">
@@ -37,7 +67,7 @@ $status = trim((string) ($_GET['status'] ?? ''));
   <title>External Event Sync</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 2rem; background: #f5f7fa; color: #1f2937; }
-    .wrap { max-width: 900px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 24px rgba(0,0,0,.08); }
+    .wrap { max-width: 980px; margin: 0 auto; background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 24px rgba(0,0,0,.08); }
     .topbar { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem; }
     .button, button { display:inline-block; padding:.55rem .85rem; border:1px solid #333; background:#fff; color:#111; border-radius:6px; text-decoration:none; cursor:pointer; }
     .button-primary { background:#3f6244; color:#fff; border-color:#3f6244; }
@@ -46,12 +76,16 @@ $status = trim((string) ($_GET['status'] ?? ''));
     .toggle-row { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin-top:1rem; }
     .notice { margin-bottom:1rem; padding:.85rem 1rem; border-radius:8px; background:#edf8ef; border:1px solid #b7ddbe; color:#1f4d28; font-weight:600; }
     .error { margin-bottom:1rem; padding:.85rem 1rem; border-radius:8px; background:#fee2e2; border:1px solid #fca5a5; color:#7f1d1d; font-weight:600; }
+    .warning { margin-bottom:1rem; padding:.85rem 1rem; border-radius:8px; background:#fff7ed; border:1px solid #fdba74; color:#7c2d12; font-weight:600; }
     .card { border:1px solid #d7dde5; border-radius:10px; padding:1rem; background:#fafbfc; margin-top:1rem; }
     .note { color:#4b5563; font-size:.95rem; }
     code { background:#eef2f7; padding:.15rem .35rem; border-radius:4px; }
-    dl { display:grid; grid-template-columns:160px 1fr; gap:.5rem 1rem; }
+    dl { display:grid; grid-template-columns:190px 1fr; gap:.5rem 1rem; }
     dt { font-weight:700; }
-    dd { margin:0; }
+    dd { margin:0; word-break:break-word; }
+    .ok { color:#166534; font-weight:700; }
+    .bad { color:#991b1b; font-weight:700; }
+    .small-code { display:block; white-space:pre-wrap; margin-top:.5rem; padding:.75rem; background:#111827; color:#f9fafb; border-radius:8px; font-size:.9rem; overflow:auto; }
   </style>
 </head>
 <body>
@@ -69,10 +103,37 @@ $status = trim((string) ($_GET['status'] ?? ''));
     <?php elseif ($status === 'synced'): ?>
       <div class="notice">External events synced.</div>
     <?php elseif ($status === 'sync-error'): ?>
-      <div class="error">External event sync failed. Check the PHP error log for details.</div>
+      <div class="error">
+        External event sync failed.
+        <?php if ($lastSyncError !== ''): ?>
+          <br><br><strong>Error:</strong> <?= htmlspecialchars($lastSyncError) ?>
+        <?php else: ?>
+          <br><br>No detailed error was captured. Check the PHP error log.
+        <?php endif; ?>
+      </div>
     <?php elseif ($status === 'settings-error'): ?>
       <div class="error">External event settings could not be saved. Check the PHP error log for details.</div>
     <?php endif; ?>
+
+    <?php if (!$externalSourceColumnExists || !$externalIdColumnExists || !$latitudeColumnExists || !$longitudeColumnExists || !$costColumnExists): ?>
+      <div class="warning">
+        One or more expected Event Forge v0.7.x/v0.7.2 database columns are missing.
+        <?php if (!$costColumnExists): ?>
+          <br><br>The most likely missing v0.7.2 column is <code>events.event_cost</code>. Run <code>manual-db-upgrade-v0.7.2.sql</code>.
+        <?php endif; ?>
+      </div>
+    <?php endif; ?>
+
+    <div class="card">
+      <h2>Database Sanity Check</h2>
+      <dl>
+        <dt>external_source</dt><dd class="<?= $externalSourceColumnExists ? 'ok' : 'bad' ?>"><?= $externalSourceColumnExists ? 'Present' : 'Missing' ?></dd>
+        <dt>external_id</dt><dd class="<?= $externalIdColumnExists ? 'ok' : 'bad' ?>"><?= $externalIdColumnExists ? 'Present' : 'Missing' ?></dd>
+        <dt>latitude</dt><dd class="<?= $latitudeColumnExists ? 'ok' : 'bad' ?>"><?= $latitudeColumnExists ? 'Present' : 'Missing' ?></dd>
+        <dt>longitude</dt><dd class="<?= $longitudeColumnExists ? 'ok' : 'bad' ?>"><?= $longitudeColumnExists ? 'Present' : 'Missing' ?></dd>
+        <dt>event_cost</dt><dd class="<?= $costColumnExists ? 'ok' : 'bad' ?>"><?= $costColumnExists ? 'Present' : 'Missing' ?></dd>
+      </dl>
+    </div>
 
     <div class="card">
       <h2>Current Status</h2>
@@ -84,7 +145,9 @@ $status = trim((string) ($_GET['status'] ?? ''));
         <dt>Feed URL</dt>
         <dd><?= $feedUrl !== '' ? htmlspecialchars($feedUrl) : '<em>Not configured</em>' ?></dd>
         <dt>Last Sync</dt>
-        <dd><?= $lastSyncAt !== '' ? htmlspecialchars($lastSyncAt) : '<em>Never</em>' ?></dd>
+        <dd><?= $lastSyncAt !== '' ? htmlspecialchars((string) $lastSyncAt) : '<em>Never</em>' ?></dd>
+        <dt>Last Error</dt>
+        <dd><?= $lastSyncError !== '' ? htmlspecialchars($lastSyncError) : '<em>None captured</em>' ?></dd>
       </dl>
 
       <?php if (is_array($lastSyncStats)): ?>
@@ -140,8 +203,6 @@ $status = trim((string) ($_GET['status'] ?? ''));
             value="<?= htmlspecialchars($feedUrl) ?>"
             placeholder="<?= htmlspecialchars((string) ($providerDefinition['feed_url_placeholder'] ?? '')) ?>"
           >
-
-          <p class="note">ChamberMate images are imported as remote URLs using <code>avatarStorageKey</code>. Future providers can define their own mapping in their adapter.</p>
 
           <div class="toggle-row">
             <button type="submit" class="button-primary">Save External Event Settings</button>
