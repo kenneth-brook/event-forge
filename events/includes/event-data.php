@@ -54,8 +54,7 @@ function eventforge_build_event_view_url(
     int $eventId,
     ?string $slug = null,
     ?string $publicCalendarUrl = null
-): string
-{
+): string {
     $calendarUrl = $publicCalendarUrl !== null
         ? eventforge_build_public_event_url_from_base($publicCalendarUrl, $eventId, $slug)
         : eventforge_build_public_event_url($connection, $eventId, $slug);
@@ -110,6 +109,94 @@ function eventforge_normalize_event_row(
     ];
 }
 
+function eventforge_parse_calendar_display_datetime(?string $value): ?DateTimeImmutable
+{
+    if ($value === null) {
+        return null;
+    }
+
+    $value = trim($value);
+
+    if ($value === '') {
+        return null;
+    }
+
+    try {
+        return new DateTimeImmutable($value);
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function eventforge_should_split_timed_multiday_display(array $row): bool
+{
+    if (!empty($row['all_day'])) {
+        return false;
+    }
+
+    $start = eventforge_parse_calendar_display_datetime($row['start_datetime'] ?? null);
+    $end = eventforge_parse_calendar_display_datetime($row['end_datetime'] ?? null);
+
+    if (!$start || !$end) {
+        return false;
+    }
+
+    return $start->format('Y-m-d') !== $end->format('Y-m-d');
+}
+
+function eventforge_expand_timed_multiday_display_row(array $row): array
+{
+    $start = eventforge_parse_calendar_display_datetime($row['start_datetime'] ?? null);
+    $end = eventforge_parse_calendar_display_datetime($row['end_datetime'] ?? null);
+
+    if (!$start || !$end || $start->format('Y-m-d') === $end->format('Y-m-d')) {
+        return [$row];
+    }
+
+    $startTime = $start->format('H:i:s');
+    $endTime = $end->format('H:i:s');
+
+    $currentDate = new DateTimeImmutable($start->format('Y-m-d'));
+    $lastDate = new DateTimeImmutable($end->format('Y-m-d'));
+
+    $rows = [];
+
+    while ($currentDate <= $lastDate) {
+        $date = $currentDate->format('Y-m-d');
+
+        $dailyRow = $row;
+        $dailyRow['start_datetime'] = $date . ' ' . $startTime;
+        $dailyRow['end_datetime'] = $date . ' ' . $endTime;
+        $dailyRow['all_day'] = 0;
+
+        $rows[] = $dailyRow;
+
+        $currentDate = $currentDate->modify('+1 day');
+    }
+
+    return $rows;
+}
+
+function eventforge_normalize_event_row_for_calendar_display(
+    mysqli $connection,
+    array $row,
+    ?string $publicCalendarUrl = null
+): array {
+    if (!eventforge_should_split_timed_multiday_display($row)) {
+        return [
+            eventforge_normalize_event_row($connection, $row, $publicCalendarUrl),
+        ];
+    }
+
+    $events = [];
+
+    foreach (eventforge_expand_timed_multiday_display_row($row) as $displayRow) {
+        $events[] = eventforge_normalize_event_row($connection, $displayRow, $publicCalendarUrl);
+    }
+
+    return $events;
+}
+
 function eventforge_fetch_public_calendar_events(
     mysqli $connection,
     bool $hidePastEvents = true,
@@ -140,7 +227,9 @@ function eventforge_fetch_public_calendar_events(
     $events = [];
 
     while ($row = mysqli_fetch_assoc($result)) {
-        $events[] = eventforge_normalize_event_row($connection, $row, $publicCalendarUrl);
+        foreach (eventforge_normalize_event_row_for_calendar_display($connection, $row, $publicCalendarUrl) as $event) {
+            $events[] = $event;
+        }
     }
 
     mysqli_free_result($result);

@@ -29,6 +29,7 @@ function eventforge_external_events_enabled(mysqli $connection): bool
 function eventforge_get_external_events_provider(mysqli $connection): string
 {
     $provider = trim((string) (eventforge_get_system_value($connection, 'external_events_provider') ?? ''));
+
     return $provider !== '' && eventforge_external_event_provider_exists($provider) ? $provider : 'chambermate';
 }
 
@@ -36,6 +37,7 @@ function eventforge_get_external_events_provider_definition(mysqli $connection):
 {
     $provider = eventforge_get_external_events_provider($connection);
     $providers = eventforge_external_event_providers();
+
     return $providers[$provider] ?? $providers['chambermate'];
 }
 
@@ -69,12 +71,56 @@ function eventforge_external_array_get(array $item, array $keys, string $default
             return trim((string) $item[$key]);
         }
     }
+
     return $default;
+}
+
+function eventforge_clean_external_html_text(string $value): string
+{
+    $value = trim($value);
+
+    if ($value === '') {
+        return '';
+    }
+
+    $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    $value = preg_replace_callback(
+        '/<img\b[^>]*\balt=(["\'])(.*?)\1[^>]*>/is',
+        static function (array $matches): string {
+            return html_entity_decode((string) ($matches[2] ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        },
+        $value
+    ) ?? $value;
+
+    $value = preg_replace('/<br\s*\/?>/i', "\n", $value) ?? $value;
+    $value = preg_replace('/<\/(p|div|section|article|h[1-6]|li|tr)>/i', "\n", $value) ?? $value;
+    $value = preg_replace('/<li\b[^>]*>/i', '- ', $value) ?? $value;
+
+    $value = strip_tags($value);
+    $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $value = str_replace(["\xc2\xa0", '&nbsp;'], ' ', $value);
+    $value = str_replace(["\r\n", "\r"], "\n", $value);
+
+    $lines = explode("\n", $value);
+    $cleanLines = [];
+
+    foreach ($lines as $line) {
+        $line = preg_replace('/[ \t]+/', ' ', $line) ?? $line;
+        $line = trim($line);
+
+        $cleanLines[] = $line;
+    }
+
+    $value = implode("\n", $cleanLines);
+    $value = preg_replace("/\n{3,}/", "\n\n", $value) ?? $value;
+
+    return trim($value);
 }
 
 function eventforge_external_text_excerpt(string $value, int $maxLength = 240): string
 {
-    $plain = trim(strip_tags($value));
+    $plain = eventforge_clean_external_html_text($value);
     $plain = preg_replace('/\s+/', ' ', $plain) ?? $plain;
 
     if ($plain === '') {
@@ -146,6 +192,7 @@ function eventforge_fetch_external_feed_json(string $url): array
         $body = (string) curl_exec($ch);
         $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $error = curl_error($ch);
+
         curl_close($ch);
 
         if ($body === '' || $status < 200 || $status >= 300) {
@@ -242,10 +289,15 @@ function eventforge_chambermate_company_from_associations(array $item): array
     return [];
 }
 
+function eventforge_non_empty_external_description($value): bool
+{
+    return trim((string) $value) !== '';
+}
+
 function eventforge_normalize_chambermate_event(array $item): ?array
 {
     $externalId = eventforge_external_array_get($item, ['activityKey']);
-    $title = eventforge_external_array_get($item, ['eventName']);
+    $title = eventforge_clean_external_html_text(eventforge_external_array_get($item, ['eventName']));
     $startDatetime = eventforge_external_parse_datetime(eventforge_external_array_get($item, ['startDateTime']));
 
     if ($title === '' || $startDatetime === '') {
@@ -256,11 +308,12 @@ function eventforge_normalize_chambermate_event(array $item): ?array
         $externalId = hash('sha256', strtolower($title . '|' . $startDatetime));
     }
 
-    $eventDescription = eventforge_external_array_get($item, ['eventDescription']);
-    $eventFullDescription = eventforge_external_array_get($item, ['eventFullDescription']);
-    $description = implode("\n\n", array_filter([$eventDescription, $eventFullDescription], static fn($v): bool => trim((string) $v) !== ''));
+    $eventDescription = eventforge_clean_external_html_text(eventforge_external_array_get($item, ['eventDescription']));
+    $eventFullDescription = eventforge_clean_external_html_text(eventforge_external_array_get($item, ['eventFullDescription']));
+    $descriptionParts = array_filter([$eventDescription, $eventFullDescription], 'eventforge_non_empty_external_description');
+    $description = implode("\n\n", $descriptionParts);
 
-    $summary = eventforge_external_array_get($item, ['seoDescription']);
+    $summary = eventforge_clean_external_html_text(eventforge_external_array_get($item, ['seoDescription']));
 
     if ($summary === '' && $eventDescription !== '') {
         $summary = eventforge_external_text_excerpt($eventDescription);
@@ -268,10 +321,10 @@ function eventforge_normalize_chambermate_event(array $item): ?array
 
     $address = isset($item['address']) && is_array($item['address']) ? $item['address'] : [];
     $company = eventforge_chambermate_company_from_associations($item);
-    $location = eventforge_external_array_get($address, ['name']);
+    $location = eventforge_clean_external_html_text(eventforge_external_array_get($address, ['name']));
 
     if ($location === '') {
-        $location = eventforge_external_array_get($company, ['companyName']);
+        $location = eventforge_clean_external_html_text(eventforge_external_array_get($company, ['companyName']));
     }
 
     $payloadJson = json_encode($item, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -284,11 +337,11 @@ function eventforge_normalize_chambermate_event(array $item): ?array
         'end_datetime' => eventforge_external_parse_datetime(eventforge_external_array_get($item, ['endDateTime'])) ?: null,
         'all_day' => !empty($item['noTimes']) ? 1 : 0,
         'location' => $location,
-        'address_line_1' => eventforge_external_array_get($address, ['street1']),
-        'address_line_2' => eventforge_external_array_get($address, ['street2']),
-        'address_city' => eventforge_external_array_get($address, ['city']),
-        'address_state' => eventforge_external_array_get($address, ['stateCode', 'stateName']),
-        'address_postal_code' => eventforge_external_array_get($address, ['zip']),
+        'address_line_1' => eventforge_clean_external_html_text(eventforge_external_array_get($address, ['street1'])),
+        'address_line_2' => eventforge_clean_external_html_text(eventforge_external_array_get($address, ['street2'])),
+        'address_city' => eventforge_clean_external_html_text(eventforge_external_array_get($address, ['city'])),
+        'address_state' => eventforge_clean_external_html_text(eventforge_external_array_get($address, ['stateCode', 'stateName'])),
+        'address_postal_code' => eventforge_clean_external_html_text(eventforge_external_array_get($address, ['zip'])),
         'summary' => $summary,
         'description' => $description,
         'image_path' => eventforge_chambermate_image_url($item),
@@ -346,8 +399,10 @@ function eventforge_find_existing_external_event(mysqli $connection, string $sou
 
     mysqli_stmt_bind_param($stmt, 'ss', $source, $externalId);
     mysqli_stmt_execute($stmt);
+
     $result = mysqli_stmt_get_result($stmt);
     $row = $result ? mysqli_fetch_assoc($result) : null;
+
     mysqli_stmt_close($stmt);
 
     return $row ?: null;
@@ -381,6 +436,7 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
 
         if ((string) ($existing['external_hash'] ?? '') === $hash) {
             $stmt = mysqli_prepare($connection, "UPDATE events SET external_synced_at = NOW(), external_payload = ? WHERE id = ? LIMIT 1");
+
             if (!$stmt) {
                 throw new RuntimeException('Could not prepare external event touch update.');
             }
@@ -393,6 +449,7 @@ function eventforge_import_external_event(mysqli $connection, array $event): str
         }
 
         $slug = trim((string) ($existing['slug'] ?? ''));
+
         if ($slug === '') {
             $slug = eventforge_unique_event_slug($connection, $title, $eventId);
         }
