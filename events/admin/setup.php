@@ -7,6 +7,35 @@ require_once __DIR__ . '/../includes/passwords.php';
 $error = '';
 $step = 'db';
 
+function eventforge_setup_same_origin_post(): bool
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        return true;
+    }
+
+    $host = strtolower((string) ($_SERVER['HTTP_HOST'] ?? ''));
+
+    if ($host === '') {
+        return true;
+    }
+
+    $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+
+    if ($origin !== '') {
+        $originHost = strtolower((string) (parse_url($origin, PHP_URL_HOST) ?? ''));
+        return $originHost === $host;
+    }
+
+    $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+
+    if ($referer !== '') {
+        $refererHost = strtolower((string) (parse_url($referer, PHP_URL_HOST) ?? ''));
+        return $refererHost === $host;
+    }
+
+    return true;
+}
+
 try {
     if (eventforge_config_exists()) {
         $config = eventforge_load_db_config();
@@ -34,9 +63,9 @@ if ($step === 'done') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!eventforge_verify_csrf_token($_POST['csrf_token'] ?? null)) {
+    if (!eventforge_setup_same_origin_post()) {
         http_response_code(403);
-        exit('Security token check failed.');
+        exit('Setup request origin check failed.');
     }
 
     $formStep = $_POST['setup_step'] ?? '';
@@ -74,6 +103,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($password !== $confirmPassword) {
                 throw new RuntimeException('Passwords do not match.');
+            }
+
+            $passwordErrors = eventforge_validate_new_password($password);
+
+            if (!empty($passwordErrors)) {
+                throw new RuntimeException(implode(' ', $passwordErrors));
             }
 
             $connection = eventforge_bootstrap_connection();
@@ -122,9 +157,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ' . eventforge_admin_path('login.php'));
             exit;
         }
+
+        throw new RuntimeException('Unknown setup step.');
     } catch (Throwable $e) {
         error_log('Event Forge setup failed: ' . $e->getMessage());
-        $error = 'Setup failed. Please verify the submitted values and try again.';
+        $error = $e->getMessage();
     }
 }
 
@@ -199,8 +236,7 @@ if (isset($_GET['step']) && $_GET['step'] === 'admin') {
     <?php if ($step === 'db'): ?>
       <p class="note">Enter database connection details. Event Forge will write the configuration and create the required tables.</p>
 
-      <form method="post">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(eventforge_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+      <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('setup.php')) ?>">
         <input type="hidden" name="setup_step" value="db">
 
         <label for="db_host">Database Host</label>
@@ -225,8 +261,7 @@ if (isset($_GET['step']) && $_GET['step'] === 'admin') {
     <?php elseif ($step === 'admin'): ?>
       <p class="note">Create the first administrator account for this Event Forge installation.</p>
 
-      <form method="post">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(eventforge_csrf_token(), ENT_QUOTES, 'UTF-8') ?>">
+      <form method="post" action="<?= htmlspecialchars(eventforge_admin_path('setup.php')) ?>">
         <input type="hidden" name="setup_step" value="admin">
 
         <label for="username">Admin Username</label>
@@ -234,6 +269,7 @@ if (isset($_GET['step']) && $_GET['step'] === 'admin') {
 
         <label for="password">Password</label>
         <input id="password" name="password" type="password" required>
+        <p class="note">Password must be at least <?= (int) eventforge_password_min_length() ?> characters and include uppercase, lowercase, number, and special character.</p>
 
         <label for="confirm_password">Confirm Password</label>
         <input id="confirm_password" name="confirm_password" type="password" required>
