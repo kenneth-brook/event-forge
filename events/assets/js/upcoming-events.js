@@ -10,13 +10,27 @@
     callback();
   }
 
+  function appendQuery(url, params) {
+    var parsed = new URL(url, window.location.origin);
+
+    Object.keys(params).forEach(function (key) {
+      var value = params[key];
+
+      if (value !== null && value !== undefined && String(value).trim() !== '') {
+        parsed.searchParams.set(key, String(value));
+      }
+    });
+
+    return parsed.href;
+  }
+
   function getSafeUrl(value) {
     if (typeof value !== 'string' || value.trim() === '') {
       return '';
     }
 
     try {
-      const parsed = new URL(value, window.location.origin);
+      var parsed = new URL(value, window.location.origin);
 
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
         return '';
@@ -28,24 +42,14 @@
     }
   }
 
-  function appendQuery(url, params) {
-    const parsed = new URL(url, window.location.origin);
-
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && String(value).trim() !== '') {
-        parsed.searchParams.set(key, String(value));
-      }
-    });
-
-    return parsed.href;
-  }
-
   function applyThemeVariables(themeVars, scope) {
     if (!themeVars || typeof themeVars !== 'object' || !scope) {
       return;
     }
 
-    Object.entries(themeVars).forEach(([key, value]) => {
+    Object.keys(themeVars).forEach(function (key) {
+      var value = themeVars[key];
+
       if (typeof value === 'string' && value.trim() !== '') {
         scope.style.setProperty(key, value);
       }
@@ -57,8 +61,7 @@
       return null;
     }
 
-    const normalized = value.replace(' ', 'T');
-    const date = new Date(normalized);
+    var date = new Date(value.replace(' ', 'T'));
 
     if (Number.isNaN(date.getTime())) {
       return null;
@@ -74,55 +77,54 @@
   }
 
   function formatEventDateTime(event) {
-    const start = parseEventDate(event.start);
-    const end = parseEventDate(event.end);
-    const allDay = !!event.allDay;
+    var start = parseEventDate(event.start);
+    var end = parseEventDate(event.end);
 
     if (!start) {
       return '';
     }
 
-    const dateOptions = {
+    var dateOptions = {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       year: 'numeric'
     };
 
-    const timeOptions = {
+    var timeOptions = {
       hour: 'numeric',
       minute: '2-digit'
     };
 
-    const startDate = start.toLocaleDateString(undefined, dateOptions);
+    var startDate = start.toLocaleDateString(undefined, dateOptions);
 
-    if (allDay) {
-      return `${startDate} • All day`;
+    if (event.allDay) {
+      return startDate + ' • All day';
     }
 
-    const startTime = start.toLocaleTimeString(undefined, timeOptions);
+    var startTime = start.toLocaleTimeString(undefined, timeOptions);
 
     if (!end || end.getTime() <= start.getTime()) {
-      return `${startDate} • ${startTime}`;
+      return startDate + ' • ' + startTime;
     }
 
-    const endTime = end.toLocaleTimeString(undefined, timeOptions);
+    var endTime = end.toLocaleTimeString(undefined, timeOptions);
 
     if (sameDate(start, end)) {
-      return `${startDate} • ${startTime} - ${endTime}`;
+      return startDate + ' • ' + startTime + ' - ' + endTime;
     }
 
-    const endDate = end.toLocaleDateString(undefined, dateOptions);
+    var endDate = end.toLocaleDateString(undefined, dateOptions);
 
-    return `${startDate} • ${startTime} through ${endDate} • ${endTime}`;
+    return startDate + ' • ' + startTime + ' through ' + endDate + ' • ' + endTime;
   }
 
   function createEventItem(event) {
-    const props = event.extendedProps || {};
-    const isCanceled = !!props.isCanceled;
-    const viewUrl = getSafeUrl(event.viewUrl || props.viewUrl || event.url || '');
+    var props = event.extendedProps || {};
+    var isCanceled = !!props.isCanceled;
+    var viewUrl = getSafeUrl(event.viewUrl || props.viewUrl || event.url || '');
 
-    const item = document.createElement('article');
+    var item = document.createElement('article');
     item.className = 'eventforge-upcoming-events__item';
 
     if (isCanceled) {
@@ -133,40 +135,35 @@
       item.style.setProperty('--ef-upcoming-category-color', props.categoryColor);
     }
 
-    if (props.categoryFontColor) {
-      item.style.setProperty('--ef-upcoming-category-font-color', props.categoryFontColor);
-    }
-
-    const title = document.createElement('h3');
+    var title = document.createElement('h3');
     title.className = 'eventforge-upcoming-events__title';
     title.textContent = event.title || 'Untitled Event';
+    item.appendChild(title);
 
-    const date = document.createElement('div');
+    var date = document.createElement('div');
     date.className = 'eventforge-upcoming-events__date';
     date.textContent = formatEventDateTime(event);
-
-    item.appendChild(title);
 
     if (date.textContent !== '') {
       item.appendChild(date);
     }
 
     if (props.location) {
-      const location = document.createElement('div');
+      var location = document.createElement('div');
       location.className = 'eventforge-upcoming-events__location';
       location.textContent = props.location;
       item.appendChild(location);
     }
 
     if (isCanceled) {
-      const canceled = document.createElement('div');
+      var canceled = document.createElement('div');
       canceled.className = 'eventforge-upcoming-events__canceled';
       canceled.textContent = 'Canceled';
       item.appendChild(canceled);
     }
 
     if (viewUrl !== '') {
-      const link = document.createElement('a');
+      var link = document.createElement('a');
       link.className = 'eventforge-upcoming-events__link';
       link.href = viewUrl;
       link.textContent = 'View Details';
@@ -176,11 +173,146 @@
     return item;
   }
 
+  function getBooleanAttribute(element, name, defaultValue) {
+    var value = element.getAttribute(name);
+
+    if (value === null) {
+      return defaultValue;
+    }
+
+    return ['1', 'true', 'yes', 'on'].indexOf(value.toLowerCase()) !== -1;
+  }
+
+  function getNumberAttribute(element, name, defaultValue, min, max) {
+    var value = Number.parseFloat(element.getAttribute(name));
+
+    if (!Number.isFinite(value)) {
+      return defaultValue;
+    }
+
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function getIntegerAttribute(element, name, defaultValue, min, max) {
+    var value = Number.parseInt(element.getAttribute(name), 10);
+
+    if (!Number.isFinite(value)) {
+      return defaultValue;
+    }
+
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function clearScroller(listEl) {
+    if (!listEl || !listEl._eventforgeScrollerTimer) {
+      return;
+    }
+
+    window.clearInterval(listEl._eventforgeScrollerTimer);
+    listEl._eventforgeScrollerTimer = null;
+  }
+
+  function startUpcomingScroller(container, listEl, eventCount) {
+    var autoScroll = getBooleanAttribute(container, 'data-auto-scroll', true);
+    var minScrollItems = getIntegerAttribute(container, 'data-min-scroll-items', 3, 2, 25);
+    var pauseOnHover = getBooleanAttribute(container, 'data-pause-on-hover', true);
+    var scrollSpeed = getNumberAttribute(container, 'data-scroll-speed', 1, 0.25, 10);
+
+    clearScroller(listEl);
+
+    if (!autoScroll || eventCount < minScrollItems) {
+      return;
+    }
+
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    listEl.classList.add('is-auto-scrolling');
+    container.classList.add('is-auto-scrolling');
+
+    listEl._eventforgePaused = false;
+
+    function setPaused(nextPaused) {
+      listEl._eventforgePaused = nextPaused;
+      listEl.classList.toggle('is-scroll-paused', nextPaused);
+      container.classList.toggle('is-scroll-paused', nextPaused);
+    }
+
+    if (!listEl._eventforgeHoverBound) {
+      [listEl, container].forEach(function (target) {
+        target.addEventListener('mouseenter', function () {
+          setPaused(true);
+        });
+
+        target.addEventListener('mouseover', function () {
+          setPaused(true);
+        });
+
+        target.addEventListener('mouseleave', function () {
+          setPaused(false);
+        });
+
+        target.addEventListener('focusin', function () {
+          setPaused(true);
+        });
+
+        target.addEventListener('focusout', function () {
+          setPaused(false);
+        });
+      });
+
+      listEl._eventforgeHoverBound = true;
+    }
+
+    if (pauseOnHover && (listEl.matches(':hover') || container.matches(':hover'))) {
+      setPaused(true);
+    }
+
+    listEl._eventforgeScrollerTimer = window.setInterval(function () {
+      var canScroll = listEl.scrollHeight > listEl.clientHeight + 2;
+      var hoverPaused = pauseOnHover
+        && (listEl._eventforgePaused || listEl.matches(':hover') || container.matches(':hover'));
+
+      if (hoverPaused || !canScroll) {
+        return;
+      }
+
+      listEl.scrollTop = listEl.scrollTop + scrollSpeed;
+
+      if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 2) {
+        listEl.scrollTop = 0;
+      }
+    }, 24);
+  }
+
+  function refreshUpcomingScroller(container) {
+    var listEl = container.querySelector('[data-upcoming-list]');
+    var eventCount = Number.parseInt(container.getAttribute('data-rendered-event-count') || '0', 10);
+
+    if (!listEl || listEl.hidden || !eventCount) {
+      return;
+    }
+
+    window.setTimeout(function () {
+      startUpcomingScroller(container, listEl, eventCount);
+    }, 80);
+  }
+
+  function refreshAllUpcomingScrollers() {
+    document.querySelectorAll('[data-eventforge-upcoming]').forEach(function (container) {
+      refreshUpcomingScroller(container);
+    });
+  }
+
   function renderEmpty(container, statusEl, listEl, message) {
     if (listEl) {
+      clearScroller(listEl);
       listEl.hidden = true;
       listEl.innerHTML = '';
     }
+
+    container.setAttribute('data-rendered-event-count', '0');
 
     if (statusEl) {
       statusEl.hidden = false;
@@ -189,7 +321,19 @@
     }
   }
 
-  function renderError(statusEl) {
+  function renderError(container, statusEl) {
+    var listEl = container ? container.querySelector('[data-upcoming-list]') : null;
+
+    if (listEl) {
+      clearScroller(listEl);
+      listEl.hidden = true;
+      listEl.innerHTML = '';
+    }
+
+    if (container) {
+      container.setAttribute('data-rendered-event-count', '0');
+    }
+
     if (!statusEl) {
       return;
     }
@@ -200,11 +344,10 @@
   }
 
   function renderEvents(container, data) {
-    const statusEl = container.querySelector('[data-upcoming-status]');
-    const listEl = container.querySelector('[data-upcoming-list]');
-    const emptyMessage = container.getAttribute('data-empty-message') || 'No upcoming events are currently scheduled.';
-
-    const events = data && Array.isArray(data.events) ? data.events : [];
+    var statusEl = container.querySelector('[data-upcoming-status]');
+    var listEl = container.querySelector('[data-upcoming-list]');
+    var emptyMessage = container.getAttribute('data-empty-message') || 'No upcoming events are currently scheduled.';
+    var events = data && Array.isArray(data.events) ? data.events : [];
 
     if (data && data.meta && data.meta.calendar_theme_css_variables) {
       applyThemeVariables(data.meta.calendar_theme_css_variables, container);
@@ -214,16 +357,18 @@
       return;
     }
 
+    clearScroller(listEl);
     listEl.innerHTML = '';
+    container.setAttribute('data-rendered-event-count', String(events.length));
 
     if (events.length === 0) {
       renderEmpty(container, statusEl, listEl, emptyMessage);
       return;
     }
 
-    const fragment = document.createDocumentFragment();
+    var fragment = document.createDocumentFragment();
 
-    events.forEach((event) => {
+    events.forEach(function (event) {
       fragment.appendChild(createEventItem(event));
     });
 
@@ -235,14 +380,16 @@
       statusEl.textContent = '';
       statusEl.classList.remove('is-error');
     }
+
+    startUpcomingScroller(container, listEl, events.length);
   }
 
   function initUpcomingEvents(container) {
-    const source = container.getAttribute('data-source') || '/event-forge/events/upcoming.php';
-    const limit = container.getAttribute('data-limit') || '10';
-    const includeCanceled = container.getAttribute('data-include-canceled') === 'true';
-
-    const statusEl = container.querySelector('[data-upcoming-status]');
+    var source = container.getAttribute('data-source') || '/event-forge/events/api.php';
+    var display = container.getAttribute('data-display') || 'upcoming';
+    var limit = container.getAttribute('data-limit') || '10';
+    var includeCanceled = container.getAttribute('data-include-canceled') === 'true';
+    var statusEl = container.querySelector('[data-upcoming-status]');
 
     if (statusEl) {
       statusEl.hidden = false;
@@ -250,37 +397,37 @@
       statusEl.classList.remove('is-error');
     }
 
-    const requestUrl = appendQuery(source, {
-      limit,
+    fetch(appendQuery(source, {
+      display: display,
+      limit: limit,
       include_canceled: includeCanceled ? '1' : ''
-    });
-
-    fetch(requestUrl, {
+    }), {
       headers: {
         Accept: 'application/json'
       }
     })
-      .then((response) => {
+      .then(function (response) {
         if (!response.ok) {
           throw new Error('Upcoming events request failed.');
         }
 
         return response.json();
       })
-      .then((data) => {
+      .then(function (data) {
         renderEvents(container, data);
       })
-      .catch((error) => {
+      .catch(function (error) {
         console.error(error);
-        renderError(statusEl);
+        renderError(container, statusEl);
       });
   }
 
-  ready(() => {
-    const containers = document.querySelectorAll('[data-eventforge-upcoming]');
-
-    containers.forEach((container) => {
+  ready(function () {
+    document.querySelectorAll('[data-eventforge-upcoming]').forEach(function (container) {
       initUpcomingEvents(container);
     });
+
+    window.addEventListener('resize', refreshAllUpcomingScrollers);
+    window.addEventListener('eventforge:display-refresh', refreshAllUpcomingScrollers);
   });
 })();

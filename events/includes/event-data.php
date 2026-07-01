@@ -71,8 +71,7 @@ function eventforge_normalize_event_row(
     mysqli $connection,
     array $row,
     ?string $publicCalendarUrl = null
-): array
-{
+): array {
     $eventId = (int) $row['id'];
     $slug = !empty($row['slug']) ? (string) $row['slug'] : null;
     $detailUrl = eventforge_build_event_detail_url($eventId, $slug);
@@ -199,10 +198,35 @@ function eventforge_normalize_event_row_for_calendar_display(
     return $events;
 }
 
+function eventforge_apply_event_result_limit(array $events, int $limit): array
+{
+    if ($limit <= 0 || count($events) <= $limit) {
+        return $events;
+    }
+
+    return array_slice($events, 0, $limit);
+}
+
+function eventforge_default_display_limit(string $display): int
+{
+    switch ($display) {
+        case 'compact':
+            return 5;
+
+        case 'wall':
+            return 12;
+
+        case 'upcoming':
+        default:
+            return 10;
+    }
+}
+
 function eventforge_fetch_public_calendar_events(
     mysqli $connection,
     bool $hidePastEvents = true,
-    bool $keepCurrentMonth = true
+    bool $keepCurrentMonth = true,
+    int $limit = 0
 ): array {
     $sql = eventforge_event_select_sql() . "
         WHERE e.is_published = 1
@@ -218,6 +242,10 @@ function eventforge_fetch_public_calendar_events(
     }
 
     $sql .= " ORDER BY e.start_datetime ASC, e.id ASC";
+
+    if ($limit > 0) {
+        $sql .= " LIMIT {$limit}";
+    }
 
     $result = mysqli_query($connection, $sql);
 
@@ -236,15 +264,32 @@ function eventforge_fetch_public_calendar_events(
 
     mysqli_free_result($result);
 
-    return $events;
+    return eventforge_apply_event_result_limit($events, $limit);
 }
 
-function eventforge_fetch_upcoming_events(
-    mysqli $connection,
-    int $limit = 20,
-    bool $includeCanceled = false
-): array {
+function eventforge_fetch_display_events(mysqli $connection, array $options = []): array
+{
+    $display = isset($options['display'])
+        ? strtolower(trim((string) $options['display']))
+        : 'upcoming';
+
+    if ($display === 'event_wall') {
+        $display = 'wall';
+    }
+
+    if (!in_array($display, ['upcoming', 'compact', 'wall'], true)) {
+        $display = 'upcoming';
+    }
+
+    $limit = isset($options['limit'])
+        ? (int) $options['limit']
+        : eventforge_default_display_limit($display);
+
     $limit = max(1, min(100, $limit));
+
+    $includeCanceled = !empty($options['include_canceled']);
+
+    $queryLimit = max(1, min(100, $limit * 2));
 
     $sql = eventforge_event_select_sql() . "
         WHERE e.is_published = 1
@@ -258,23 +303,45 @@ function eventforge_fetch_upcoming_events(
 
     $sql .= "
         ORDER BY e.start_datetime ASC, e.id ASC
-        LIMIT {$limit}
+        LIMIT {$queryLimit}
     ";
 
     $result = mysqli_query($connection, $sql);
 
     if (!$result) {
-        throw new RuntimeException('Upcoming event query failed: ' . mysqli_error($connection));
+        throw new RuntimeException('Display event query failed: ' . mysqli_error($connection));
     }
 
     $publicCalendarUrl = (string) (eventforge_get_system_value($connection, 'public_calendar_url') ?? '');
     $events = [];
 
     while ($row = mysqli_fetch_assoc($result)) {
-        $events[] = eventforge_normalize_event_row($connection, $row, $publicCalendarUrl);
+        foreach (eventforge_normalize_event_row_for_calendar_display($connection, $row, $publicCalendarUrl) as $event) {
+            $events[] = $event;
+
+            if (count($events) >= $limit) {
+                break 2;
+            }
+        }
     }
 
     mysqli_free_result($result);
 
-    return $events;
+    return eventforge_apply_event_result_limit($events, $limit);
+}
+
+/**
+ * Legacy internal function name retained for older PHP includes inside a full-file upgrade.
+ * Public display components should call /events/api.php, not /events/upcoming.php.
+ */
+function eventforge_fetch_upcoming_events(
+    mysqli $connection,
+    int $limit = 20,
+    bool $includeCanceled = false
+): array {
+    return eventforge_fetch_display_events($connection, [
+        'display' => 'upcoming',
+        'limit' => $limit,
+        'include_canceled' => $includeCanceled,
+    ]);
 }

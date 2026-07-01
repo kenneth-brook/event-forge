@@ -1,9 +1,9 @@
 /*
   Event Forge Upcoming Events Component
-  v0.7.0
+  v0.8.0-TC
 
-  Designed for portable client-site embeds. Selectors are scoped to the
-  component root so host themes do not grab the wheel and drive into a pond.
+  Portable client-site embed styles.
+  Width is intentionally controlled by the host container or CSS variables.
 */
 
 .eventforge-upcoming-events,
@@ -13,8 +13,8 @@
 
 .eventforge-upcoming-events {
   display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
+  width: var(--ef-upcoming-width, auto) !important;
+  max-width: var(--ef-upcoming-max-width, 100%) !important;
   margin: 0 !important;
   padding: 1rem !important;
   font-family: Arial, Helvetica, sans-serif !important;
@@ -62,18 +62,26 @@
   gap: 0.75rem !important;
   max-height: var(--ef-upcoming-max-height, 420px) !important;
   overflow-y: auto !important;
+  overscroll-behavior: contain !important;
   padding: 0 0.25rem 0 0 !important;
   margin: 0 !important;
   scrollbar-width: thin !important;
+  scroll-behavior: auto !important;
 }
 
 .eventforge-upcoming-events__list[hidden] {
   display: none !important;
 }
 
+.eventforge-upcoming-events__list.is-auto-scrolling,
+.eventforge-upcoming-events__list.is-scroll-paused {
+  overflow-y: auto !important;
+}
+
 .eventforge-upcoming-events__item {
   display: block !important;
   position: relative !important;
+  flex: 0 0 auto !important;
   margin: 0 !important;
   padding: 0.85rem 0.9rem 0.9rem 1rem !important;
   background: #ffffff !important;
@@ -89,7 +97,14 @@
 }
 
 .eventforge-upcoming-events__item.is-canceled .eventforge-upcoming-events__title {
-  text-decoration: line-through !important;
+  display: block !important;
+  margin: 0 0 0.35rem !important;
+  padding: 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 1rem !important;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  color: var(--ef-upcoming-category-color, var(--ef-calendar-text-color, #1f2937)) !important;
 }
 
 .eventforge-upcoming-events__title {
@@ -100,7 +115,7 @@
   font-size: 1rem !important;
   line-height: 1.25 !important;
   font-weight: 700 !important;
-  color: var(--ef-upcoming-category-font-color, var(--ef-calendar-text-color, #1f2937)) !important;
+  color: var(--ef-upcoming-category-color, var(--ef-calendar-text-color, #1f2937)) !important;
 }
 
 .eventforge-upcoming-events__date,
@@ -155,6 +170,13 @@
 .eventforge-upcoming-events__link:focus {
   filter: brightness(0.96) !important;
   text-decoration: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eventforge-upcoming-events__list {
+    overflow-y: auto !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media (max-width: 640px) {
