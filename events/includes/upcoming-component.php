@@ -118,6 +118,11 @@ function eventforge_render_upcoming_events_component(array $options = []): strin
             aria-live="polite"
             hidden
         ></div>
+
+        <footer class="eventforge-display-footer" data-display-footer hidden>
+            <div class="eventforge-display-category-key" data-display-category-key hidden></div>
+            <div class="eventforge-display-powered-by" data-display-powered-by hidden></div>
+        </footer>
     </section>
 
     <?php
