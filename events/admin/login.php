@@ -11,8 +11,11 @@ if (!eventforge_is_installed()) {
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/auth.php';
 
+$panelRequested = ($_GET['panel'] ?? '') === '1' && is_file(__DIR__ . '/../panel/index.php');
+$destination = $panelRequested ? eventforge_public_path('panel/index.php') : eventforge_admin_path('index.php');
+
 if (is_logged_in()) {
-    header('Location: ' . eventforge_admin_path('index.php'));
+    header('Location: ' . $destination);
     exit;
 }
 
@@ -40,11 +43,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($user['is_suspended'])) {
                 $error = 'This account is suspended.';
             } elseif (password_verify($password, $user['password_hash'])) {
+                if ($panelRequested) {
+                    session_regenerate_id(true);
+                }
                 $_SESSION['events_admin_logged_in'] = true;
                 $_SESSION['events_admin_username'] = $user['username'];
                 $_SESSION['events_admin_role'] = $user['role'] ?? 'staff';
 
-                header('Location: ' . eventforge_admin_path('index.php'));
+                header('Location: ' . $destination);
                 exit;
             } else {
                 $error = 'Invalid username or password.';
