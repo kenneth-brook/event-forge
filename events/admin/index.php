@@ -470,6 +470,10 @@ $externalEventsPageExists = is_file(__DIR__ . '/external-events.php');
         <span class="account-chip__role"><?= htmlspecialchars(strtoupper(current_admin_role())) ?></span>
       </div>
 
+      <?php if (is_file(__DIR__ . '/../panel/index.php')): ?>
+        <a class="button" href="<?= htmlspecialchars(eventforge_public_path('panel/index.php')) ?>">Control Panel</a>
+      <?php endif; ?>
+
       <a class="button" href="<?= htmlspecialchars(eventforge_admin_path('event-form.php')) ?>">Add Event</a>
 
       <?php if ($externalEventsPageExists && can_sync_external_events()): ?>
