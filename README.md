@@ -238,3 +238,12 @@ event-forge/
     ├── consumer-page-example.php
     └── embed-snippets.md
 ```
+
+## Cross-origin website consumers
+
+When `events/business/cors.php` is present, `events/api.php` uses the Business
+Directory's shared CORS policy for GET requests and OPTIONS preflight. Its
+default allowed development origin is `https://review.365dtm.com`. Override
+that policy through `business/cors-config.php` as described in the Business
+Directory README. Without the optional helper, Event Forge uses its existing
+API behavior. This integration does not change the event response format.
