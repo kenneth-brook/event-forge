@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
 
+// The optional Business Directory supplies the website origin policy when installed.
+if (is_file(__DIR__ . '/business/cors.php')) {
+    require_once __DIR__ . '/business/cors.php';
+    forge_api_cors(['GET']);
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/includes/installer.php';
